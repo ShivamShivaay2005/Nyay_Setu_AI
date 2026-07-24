@@ -5,13 +5,14 @@ import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { ethers } from "ethers";
 
 // Load environment variables from .env.local or .env
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT) || 8080;
 
 // Increase JSON body size limit to 50MB to handle base64 image uploads
 app.use(express.json({ limit: "50mb" }));
@@ -206,6 +207,36 @@ function getGeminiClient(): GoogleGenAI {
     });
   }
   return aiClient;
+}
+
+// Lazy-initialization utility for Ethers Smart Contract (prevents crash on empty key)
+let ledgerContract: ethers.Contract | null = null;
+let ethersSigner: ethers.Signer | null = null;
+
+function getLedgerContract(): ethers.Contract {
+  if (!ledgerContract) {
+    const rpcUrl = process.env.SEPOLIA_RPC_URL;
+    const privateKey = process.env.PRIVATE_KEY;
+    const contractAddress = process.env.CONTRACT_ADDRESS;
+
+    if (!rpcUrl || !privateKey || !contractAddress) {
+      throw new Error("Blockchain environment variables are not fully configured (SEPOLIA_RPC_URL, PRIVATE_KEY, CONTRACT_ADDRESS).");
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    
+    // Load ABI from hardhat artifacts
+    const artifactPath = path.resolve(process.cwd(), "artifacts/contracts/KisanNyayLedger.sol/KisanNyayLedger.json");
+    if (!fs.existsSync(artifactPath)) {
+      throw new Error(`Smart contract artifact not found at ${artifactPath}. Please run 'npx hardhat compile' first.`);
+    }
+    const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
+    
+    ledgerContract = new ethers.Contract(contractAddress, artifact.abi, wallet);
+    ethersSigner = wallet;
+  }
+  return ledgerContract;
 }
 
 // Middleware setup
@@ -553,7 +584,7 @@ Do not add markdown formatting or wrappers outside the raw JSON object. Use vali
 });
 
 // 5. OFFICER DECISION & CRYPTOGRAPHIC BLOCKCHAIN LEDGER BLOCK GENERATION
-app.post("/api/claims/:id/decide", (req, res) => {
+app.post("/api/claims/:id/decide", async (req, res) => {
   try {
     const claimId = req.params.id;
     const { officerId, officerName, officerPosition, statusSelected, comments, officerWallet } = req.body;
@@ -597,43 +628,77 @@ app.post("/api/claims/:id/decide", (req, res) => {
     });
     const evidenceHash = "0x" + crypto.createHash("sha256").update(evidencePayload).digest("hex");
 
-    // Perform a simple Proof of Work mining simulator (finding a hash starting with "0000") to demonstrate blockchain mechanics!
-    let nonce = 0;
-    let currentHash = "";
-    const walletAddress = officerWallet || "0x" + crypto.randomBytes(20).toString("hex");
+    let txHash = "";
+    let blockNumber = newBlockNumber;
 
-    const blockTimestamp = new Date().toISOString();
-
-    while (nonce < 100000) {
-      const blockString = `${newBlockNumber}${claimId}${evidenceHash}${statusSelected}${blockTimestamp}${walletAddress}${previousHash}${nonce}`;
-      currentHash = "0x" + crypto.createHash("sha256").update(blockString).digest("hex");
-      if (currentHash.startsWith("0x000")) {
-        break;
+    try {
+      const contract = getLedgerContract();
+      console.log(`Sending transaction to Sepolia smart contract for claim ${claimId}...`);
+      
+      // Check if claim already exists on-chain
+      let exists = false;
+      try {
+        await contract.getClaim(claimId);
+        exists = true;
+      } catch (err) {
+        exists = false;
       }
-      nonce++;
+
+      let tx;
+      if (exists) {
+        tx = await contract.updateStatus(claimId, statusSelected, evidenceHash);
+      } else {
+        tx = await contract.createClaim(claimId, evidenceHash, statusSelected);
+      }
+
+      console.log(`Transaction sent! Hash: ${tx.hash}. Waiting for confirmation...`);
+      const receipt = await tx.wait();
+      txHash = tx.hash;
+      blockNumber = receipt.blockNumber;
+      console.log(`Transaction mined in block ${blockNumber}!`);
+    } catch (contractError: any) {
+      console.warn("Real blockchain transaction failed or not configured. Running fallback simulator. Error:", contractError.message);
+      
+      // Perform a simple Proof of Work mining simulator (finding a hash starting with "0000") to demonstrate blockchain mechanics!
+      let nonce = 0;
+      let currentHash = "";
+      const walletAddress = officerWallet || "0x" + crypto.randomBytes(20).toString("hex");
+      const blockTimestamp = new Date().toISOString();
+
+      while (nonce < 100000) {
+        const blockString = `${newBlockNumber}${claimId}${evidenceHash}${statusSelected}${blockTimestamp}${walletAddress}${previousHash}${nonce}`;
+        currentHash = "0x" + crypto.createHash("sha256").update(blockString).digest("hex");
+        if (currentHash.startsWith("0x000")) {
+          break;
+        }
+        nonce++;
+      }
+
+      txHash = currentHash;
+      blockNumber = newBlockNumber;
+
+      const newBlock = {
+        blockNumber: newBlockNumber,
+        claimId,
+        evidenceHash,
+        status: statusSelected,
+        timestamp: blockTimestamp,
+        officerWallet: walletAddress,
+        previousHash,
+        currentHash,
+        nonce
+      };
+
+      // Store block in db blockchain ledger
+      db.blockchainBlocks.push(newBlock);
     }
-
-    const newBlock = {
-      blockNumber: newBlockNumber,
-      claimId,
-      evidenceHash,
-      status: statusSelected,
-      timestamp: blockTimestamp,
-      officerWallet: walletAddress,
-      previousHash,
-      currentHash,
-      nonce
-    };
-
-    // Store block in db blockchain ledger
-    db.blockchainBlocks.push(newBlock);
 
     // Update claim status & attach the final transactions hash on-chain!
     db.claims[claimIndex].status = statusSelected;
-    db.claims[claimIndex].blockchainTxHash = currentHash;
+    db.claims[claimIndex].blockchainTxHash = txHash;
 
     // Attach blockId reference to decision logs
-    newDecision.blockchainBlockId = newBlockNumber;
+    newDecision.blockchainBlockId = blockNumber;
     db.officerDecisions.push(newDecision);
 
     saveDB(db);
@@ -641,8 +706,8 @@ app.post("/api/claims/:id/decide", (req, res) => {
     res.json({
       success: true,
       claimStatus: statusSelected,
-      txHash: currentHash,
-      blockNumber: newBlockNumber
+      txHash: txHash,
+      blockNumber: blockNumber
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

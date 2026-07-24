@@ -156,7 +156,18 @@ export default function TimelineComponent({
           <div>
             <h4 className="text-xs font-bold text-indigo-900">Cryptographically Sealed Block</h4>
             <p className="text-[11px] text-indigo-700 font-mono mt-1 select-all break-all leading-normal bg-indigo-100/50 p-1.5 rounded border border-indigo-100">
-              {claim.blockchainTxHash}
+              {claim.blockchainTxHash.startsWith("0x000") ? (
+                claim.blockchainTxHash
+              ) : (
+                <a
+                  href={`https://sepolia.etherscan.io/tx/${claim.blockchainTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline text-indigo-600 font-semibold inline-flex items-center gap-1"
+                >
+                  {claim.blockchainTxHash} <span className="text-[9px]">↗</span>
+                </a>
+              )}
             </p>
             <p className="text-[10px] text-indigo-500 mt-1">
               This digital certificate acts as proof of damage. It cannot be altered by third parties or officials.
