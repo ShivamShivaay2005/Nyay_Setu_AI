@@ -1,0 +1,6 @@
+{
+  "name": "Nyay Setu AI – Kisan Nyay Ledger",
+  "description": "An AI-powered crop damage claim verification ledger where Gemini AI provides evidence validation and weather analysis, assisting government officers in verifying farmer claims.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
