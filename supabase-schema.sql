@@ -29,8 +29,7 @@ CREATE TABLE public.profiles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- Enable Row Level Security
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
 
 -- 3. Claims Table
 CREATE TABLE public.claims (
@@ -62,8 +61,7 @@ CREATE TABLE public.claims (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- Enable Row Level Security
-ALTER TABLE public.claims ENABLE ROW LEVEL SECURITY;
+
 
 -- 4. AI Results Table (Populated by Gemini AI via edge function / backend)
 CREATE TABLE public.ai_results (
@@ -79,8 +77,7 @@ CREATE TABLE public.ai_results (
   analyzed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- Enable Row Level Security
-ALTER TABLE public.ai_results ENABLE ROW LEVEL SECURITY;
+
 
 -- 5. Weather Verification Table (Populated by Weather API)
 CREATE TABLE public.weather_verifications (
@@ -97,8 +94,7 @@ CREATE TABLE public.weather_verifications (
   checked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- Enable Row Level Security
-ALTER TABLE public.weather_verifications ENABLE ROW LEVEL SECURITY;
+
 
 -- 6. Officer Decisions Table
 CREATE TABLE public.officer_decisions (
@@ -112,8 +108,7 @@ CREATE TABLE public.officer_decisions (
   decided_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- Enable Row Level Security
-ALTER TABLE public.officer_decisions ENABLE ROW LEVEL SECURITY;
+
 
 -- 7. Appeals Table
 CREATE TABLE public.appeals (
@@ -126,8 +121,7 @@ CREATE TABLE public.appeals (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- Enable Row Level Security
-ALTER TABLE public.appeals ENABLE ROW LEVEL SECURITY;
+
 
 CREATE TABLE public.blockchain_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -145,59 +139,14 @@ CREATE TABLE public.blockchain_logs (
   explorer_url TEXT
 );
 
--- Enable Row Level Security
-ALTER TABLE public.blockchain_logs ENABLE ROW LEVEL SECURITY;
-
-
--- =======================================================================
--- RLS POLICIES (Row Level Security Guidelines)
--- =======================================================================
-
--- 1. Profiles Policies
-CREATE POLICY "Profiles are viewable by registered users."
-  ON public.profiles FOR SELECT
-  USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Users can update their own profile."
-  ON public.profiles FOR UPDATE
-  USING (auth.uid() = id);
-
--- 2. Claims Policies
-CREATE POLICY "Farmers can view their own claims."
-  ON public.claims FOR SELECT
-  USING (auth.uid() = farmer_id OR EXISTS (
-    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('officer', 'admin')
-  ));
-
-CREATE POLICY "Farmers can insert their own claims."
-  ON public.claims FOR INSERT
-  WITH CHECK (auth.uid() = farmer_id);
-
-CREATE POLICY "Officers can update claims status."
-  ON public.claims FOR UPDATE
-  USING (EXISTS (
-    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('officer', 'admin')
-  ));
-
--- 3. AI Results Policies
-CREATE POLICY "AI results are viewable by claim owner or officer."
-  ON public.ai_results FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM public.claims c
-    WHERE c.id = claim_id AND (c.farmer_id = auth.uid() OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('officer', 'admin')
-    ))
-  ));
-
--- 4. Weather Verification Policies
-CREATE POLICY "Weather details viewable by claim owner or officer."
-  ON public.weather_verifications FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM public.claims c
-    WHERE c.id = claim_id AND (c.farmer_id = auth.uid() OR EXISTS (
-      SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('officer', 'admin')
-    ))
-  ));
+-- Disable Row Level Security (bypassed for backend API operations)
+ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.claims DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_results DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.weather_verifications DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.officer_decisions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.appeals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.blockchain_logs DISABLE ROW LEVEL SECURITY;
 
 -- =======================================================================
 -- HELPER TRIGGERS
