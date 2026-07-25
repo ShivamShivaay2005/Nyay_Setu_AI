@@ -1,5 +1,7 @@
 # Nyay Setu AI – Kisan Nyay Ledger
 
+**Live Demo URL**: [https://nyay-setu-ai.onrender.com/landing.html](https://nyay-setu-ai.onrender.com/landing.html)
+
 Nyay Setu AI is a decentralized, AI-powered agricultural crop damage insurance verification portal. It automates and validates insurance claims for farmers using artificial intelligence (Google Gemini Vision API), localized meteorological verification (OpenWeather API), and cryptographically signs decisions onto an immutable ledger using smart contracts deployed on the **Ethereum Sepolia Testnet**.
 
 ---
