@@ -830,7 +830,7 @@ Do not add markdown formatting or wrappers outside the raw JSON object. Use vali
     };
 
     if (supabase) {
-      const { error: aiErr } = await supabase.from("ai_results").insert([{
+      const { error: aiErr } = await supabase.from("ai_results").upsert([{
         claim_id: claimId,
         crop_type_detected: resultJson.cropTypeDetected,
         damage_type_detected: resultJson.damageTypeDetected,
@@ -839,7 +839,7 @@ Do not add markdown formatting or wrappers outside the raw JSON object. Use vali
         confidence_score: resultJson.confidenceScore,
         reasoning: resultJson.reasoning,
         manual_review_required: resultJson.manualReviewRequired
-      }]);
+      }], { onConflict: "claim_id" });
       if (aiErr) throw aiErr;
     } else {
       db.aiResults.push(aiResult);
@@ -938,7 +938,7 @@ Do not add markdown formatting or wrappers outside the raw JSON object. Use vali
       };
 
       if (supabase) {
-        const { error: wetErr } = await supabase.from("weather_verifications").insert([{
+        const { error: wetErr } = await supabase.from("weather_verifications").upsert([{
           claim_id: claimId,
           verified: isVerified,
           temperature: weatherData.main.temp,
@@ -948,7 +948,7 @@ Do not add markdown formatting or wrappers outside the raw JSON object. Use vali
           wind_speed: weatherVerification.windSpeed,
           station_name: weatherVerification.stationName,
           analysis_note: weatherVerification.analysisNote
-        }]);
+        }], { onConflict: "claim_id" });
         if (wetErr) throw wetErr;
         await supabase.from("claims").update({ status: "pending_officer" }).eq("id", claimId);
       } else {
