@@ -45,11 +45,19 @@ CREATE TABLE public.claims (
   estimated_loss_inr NUMERIC(12, 2) NOT NULL,
   description TEXT,
   image_url TEXT NOT NULL,
+  image_urls TEXT[] NOT NULL DEFAULT '{}',
+  ipfs_url TEXT DEFAULT '',
+  supplemental_evidence JSONB DEFAULT '[]'::jsonb,
+  supplemental_evidence_at TIMESTAMP WITH TIME ZONE,
   latitude NUMERIC(10, 7) NOT NULL,
   longitude NUMERIC(10, 7) NOT NULL,
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   status claim_status NOT NULL DEFAULT 'pending_ai',
   blockchain_tx_hash TEXT,
+  blockchain_block_number INTEGER,
+  blockchain_network TEXT,
+  blockchain_mode TEXT,
+  blockchain_explorer_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
@@ -121,7 +129,6 @@ CREATE TABLE public.appeals (
 -- Enable Row Level Security
 ALTER TABLE public.appeals ENABLE ROW LEVEL SECURITY;
 
--- 8. Blockchain Logs Table (Caches blockchain hashes for quick verification on-chain)
 CREATE TABLE public.blockchain_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   block_number INTEGER UNIQUE NOT NULL,
@@ -132,7 +139,10 @@ CREATE TABLE public.blockchain_logs (
   officer_wallet TEXT NOT NULL,
   previous_hash TEXT NOT NULL,
   current_hash TEXT NOT NULL,
-  nonce INTEGER NOT NULL
+  nonce INTEGER NOT NULL,
+  network TEXT,
+  simulated BOOLEAN DEFAULT TRUE,
+  explorer_url TEXT
 );
 
 -- Enable Row Level Security

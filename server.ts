@@ -6,10 +6,86 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { ethers } from "ethers";
+import { createClient } from "@supabase/supabase-js";
 
 // Load environment variables from .env.local or .env
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config();
+
+// Configure Supabase Client
+const supabaseUrl = process.env.SUPABASE_URL || "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const isSupabaseConfigured = supabaseUrl && supabaseKey && !supabaseUrl.includes("your-project-id");
+
+let supabase: any = null;
+if (isSupabaseConfigured) {
+  supabase = createClient(supabaseUrl, supabaseKey);
+  console.log("Supabase Client initialized successfully.");
+  
+  // Seed demo profiles in the background
+  const seedProfiles = async () => {
+    const demoProfiles = [
+      { id: "a0000000-0000-0000-0000-000000000001", name: "Rajesh Kumar", email: "rajesh.kumar@agrilink.in", role: "farmer" },
+      { id: "a0000000-0000-0000-0000-000000000002", name: "Priya Devi", email: "priya.devi@agrilink.in", role: "farmer" },
+      { id: "b0000000-0000-0000-0000-000000000001", name: "Sandeep Verma", email: "s.verma@agriculture.gov.in", role: "officer" },
+      { id: "b0000000-0000-0000-0000-000000000002", name: "Anjali Sharma", email: "a.sharma@agriculture.gov.in", role: "officer" }
+    ];
+    const { error } = await supabase!.from("profiles").upsert(demoProfiles);
+    if (error) {
+      console.error("Error seeding demo profiles in Supabase:", error.message);
+    } else {
+      console.log("Demo profiles seeded successfully in Supabase.");
+    }
+  };
+  seedProfiles().catch(err => console.error("Profiles seeding failed:", err));
+} else {
+  console.warn("Supabase is not fully configured. Using fallback local JSON db.json.");
+}
+
+// ID mapping helpers for backward compatibility with frontend
+const ID_MAP: Record<string, string> = {
+  "farmer-1": "a0000000-0000-0000-0000-000000000001",
+  "farmer-2": "a0000000-0000-0000-0000-000000000002",
+  "officer-1": "b0000000-0000-0000-0000-000000000001",
+  "officer-2": "b0000000-0000-0000-0000-000000000002",
+};
+
+const REV_ID_MAP: Record<string, string> = {
+  "a0000000-0000-0000-0000-000000000001": "farmer-1",
+  "a0000000-0000-0000-0000-000000000002": "farmer-2",
+  "b0000000-0000-0000-0000-000000000001": "officer-1",
+  "b0000000-0000-0000-0000-000000000002": "officer-2",
+};
+
+function mapClaimToFrontend(claim: any) {
+  if (!claim) return claim;
+  return {
+    id: claim.id,
+    farmerId: REV_ID_MAP[claim.farmer_id] || claim.farmer_id,
+    farmerName: claim.farmer_name,
+    cropType: claim.crop_type,
+    damageType: claim.damage_type,
+    sowingDate: claim.sowing_date,
+    damageDate: claim.damage_date,
+    areaAcres: Number(claim.area_acres),
+    estimatedLossInr: Number(claim.estimated_loss_inr),
+    description: claim.description,
+    imageUrl: claim.image_url,
+    imageUrls: claim.image_urls || [],
+    ipfsUrl: claim.ipfs_url || "",
+    supplementalEvidence: claim.supplemental_evidence || [],
+    supplementalEvidenceAt: claim.supplemental_evidence_at,
+    latitude: Number(claim.latitude),
+    longitude: Number(claim.longitude),
+    timestamp: claim.timestamp,
+    status: claim.status,
+    blockchainTxHash: claim.blockchain_tx_hash || "",
+    blockchainBlockNumber: claim.blockchain_block_number || null,
+    blockchainNetwork: claim.blockchain_network || "",
+    blockchainMode: claim.blockchain_mode || "",
+    blockchainExplorerUrl: claim.blockchain_explorer_url || "",
+  };
+}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
@@ -376,36 +452,122 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // =======================================================================
 
 // 1. GET ALL CLAIMS
-app.get("/api/claims", (req, res) => {
+app.get("/api/claims", async (req, res) => {
   try {
-    const db = getDB();
-    res.json(db.claims);
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("claims")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      res.json(data.map(mapClaimToFrontend));
+    } else {
+      const db = getDB();
+      res.json(db.claims);
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // 2. GET CLAIM BY ID WITH DETAILS
-app.get("/api/claims/:id", (req, res) => {
+app.get("/api/claims/:id", async (req, res) => {
   try {
-    const db = getDB();
-    const claim = db.claims.find((c) => c.id === req.params.id);
-    if (!claim) {
-      return res.status(404).json({ error: "Claim not found" });
+    const claimId = req.params.id;
+    if (supabase) {
+      const { data: claimData, error: claimErr } = await supabase
+        .from("claims")
+        .select("*")
+        .eq("id", claimId)
+        .single();
+      
+      if (claimErr || !claimData) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+
+      const [aiRes, weatherRes, decisionsRes, appealRes] = await Promise.all([
+        supabase.from("ai_results").select("*").eq("claim_id", claimId).maybeSingle(),
+        supabase.from("weather_verifications").select("*").eq("claim_id", claimId).maybeSingle(),
+        supabase.from("officer_decisions").select("*").eq("claim_id", claimId),
+        supabase.from("appeals").select("*").eq("claim_id", claimId).maybeSingle(),
+      ]);
+
+      const claim = mapClaimToFrontend(claimData);
+      const aiResult = aiRes.data ? {
+        claimId: aiRes.data.claim_id,
+        cropTypeDetected: aiRes.data.crop_type_detected,
+        damageTypeDetected: aiRes.data.damage_type_detected,
+        severity: aiRes.data.severity,
+        severityPercent: aiRes.data.severity_percent,
+        confidenceScore: Number(aiRes.data.confidence_score),
+        reasoning: aiRes.data.reasoning,
+        manualReviewRequired: aiRes.data.manual_review_required,
+        analyzedAt: aiRes.data.analyzed_at,
+      } : null;
+
+      const weatherVerification = weatherRes.data ? {
+        claimId: weatherRes.data.claim_id,
+        verified: weatherRes.data.verified,
+        temperature: Number(weatherRes.data.temperature),
+        humidity: weatherRes.data.humidity,
+        precipitation: Number(weatherRes.data.precipitation),
+        weatherDescription: weatherRes.data.weather_description,
+        windSpeed: Number(weatherRes.data.wind_speed),
+        stationName: weatherRes.data.station_name,
+        analysisNote: weatherRes.data.analysis_note,
+        checkedAt: weatherRes.data.checked_at,
+      } : null;
+
+      const decisions = (decisionsRes.data || []).map((d: any) => ({
+        id: d.id,
+        claimId: d.claim_id,
+        officerId: REV_ID_MAP[d.officer_id] || d.officer_id,
+        officerName: d.officer_name,
+        officerPosition: d.officer_position || "Senior Agricultural Inspection Officer",
+        statusSelected: d.status_selected,
+        comments: d.comments,
+        blockchainBlockId: d.blockchain_block_id,
+        blockchainMode: d.blockchain_mode || "simulated",
+        decidedAt: d.decided_at,
+      }));
+
+      const appeal = appealRes.data ? {
+        id: appealRes.data.id,
+        claimId: appealRes.data.claim_id,
+        farmerId: REV_ID_MAP[appealRes.data.farmer_id] || appealRes.data.farmer_id,
+        reason: appealRes.data.reason,
+        newEvidenceUrl: appealRes.data.new_evidence_url,
+        status: appealRes.data.status,
+        createdAt: appealRes.data.created_at,
+      } : null;
+
+      res.json({
+        claim,
+        aiResult,
+        weatherVerification,
+        decisions,
+        appeal,
+      });
+    } else {
+      const db = getDB();
+      const claim = db.claims.find((c) => c.id === claimId);
+      if (!claim) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+
+      const aiResult = db.aiResults.find((ai) => ai.claimId === claim.id) || null;
+      const weatherVerification = db.weatherVerifications.find((w) => w.claimId === claim.id) || null;
+      const decisions = db.officerDecisions.filter((d) => d.claimId === claim.id);
+      const appeal = db.appeals.find((a) => a.claimId === claim.id) || null;
+
+      res.json({
+        claim,
+        aiResult,
+        weatherVerification,
+        decisions,
+        appeal,
+      });
     }
-
-    const aiResult = db.aiResults.find((ai) => ai.claimId === claim.id) || null;
-    const weatherVerification = db.weatherVerifications.find((w) => w.claimId === claim.id) || null;
-    const decisions = db.officerDecisions.filter((d) => d.claimId === claim.id);
-    const appeal = db.appeals.find((a) => a.claimId === claim.id) || null;
-
-    res.json({
-      claim,
-      aiResult,
-      weatherVerification,
-      decisions,
-      appeal,
-    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -434,8 +596,6 @@ app.post("/api/claims", async (req, res) => {
       return res.status(400).json({ error: "Missing required claim fields" });
     }
 
-    const db = getDB();
-
     // Upload to Pinata IPFS if JWT is configured
     let ipfsUrl = "";
     if (imageUrl && imageUrl.startsWith("data:image")) {
@@ -446,31 +606,61 @@ app.post("/api/claims", async (req, res) => {
       }
     }
 
-    const newClaim = {
-      id: "claim-" + Date.now(),
-      farmerId,
-      farmerName,
-      cropType,
-      damageType,
-      sowingDate: sowingDate || new Date().toISOString().split("T")[0],
-      damageDate: damageDate || new Date().toISOString().split("T")[0],
-      areaAcres: Number(areaAcres) || 1.0,
-      estimatedLossInr: Number(estimatedLossInr) || 10000,
-      description: description || "",
-      imageUrl,
-      imageUrls: Array.isArray(imageUrls) && imageUrls.length ? imageUrls : (imageUrl ? [imageUrl] : []),
-      ipfsUrl: ipfsUrl || "",
-      latitude: Number(latitude) || 26.8467,
-      longitude: Number(longitude) || 80.9462,
-      timestamp: new Date().toISOString(),
-      status: "pending_ai",
-      createdAt: new Date().toISOString(),
-    };
+    if (supabase) {
+      const dbClaim = {
+        farmer_id: ID_MAP[farmerId] || farmerId,
+        farmer_name: farmerName,
+        crop_type: cropType,
+        damage_type: damageType,
+        sowing_date: sowingDate || new Date().toISOString().split("T")[0],
+        damage_date: damageDate || new Date().toISOString().split("T")[0],
+        area_acres: Number(areaAcres) || 1.0,
+        estimated_loss_inr: Number(estimatedLossInr) || 10000,
+        description: description || "",
+        image_url: imageUrl,
+        image_urls: Array.isArray(imageUrls) && imageUrls.length ? imageUrls : (imageUrl ? [imageUrl] : []),
+        ipfs_url: ipfsUrl || "",
+        latitude: Number(latitude) || 26.8467,
+        longitude: Number(longitude) || 80.9462,
+        status: "pending_ai"
+      };
 
-    db.claims.unshift(newClaim);
-    saveDB(db);
+      const { data, error } = await supabase
+        .from("claims")
+        .insert([dbClaim])
+        .select()
+        .single();
 
-    res.status(201).json(newClaim);
+      if (error) throw error;
+      res.status(201).json(mapClaimToFrontend(data));
+    } else {
+      const db = getDB();
+      const newClaim = {
+        id: "claim-" + Date.now(),
+        farmerId,
+        farmerName,
+        cropType,
+        damageType,
+        sowingDate: sowingDate || new Date().toISOString().split("T")[0],
+        damageDate: damageDate || new Date().toISOString().split("T")[0],
+        areaAcres: Number(areaAcres) || 1.0,
+        estimatedLossInr: Number(estimatedLossInr) || 10000,
+        description: description || "",
+        imageUrl,
+        imageUrls: Array.isArray(imageUrls) && imageUrls.length ? imageUrls : (imageUrl ? [imageUrl] : []),
+        ipfsUrl: ipfsUrl || "",
+        latitude: Number(latitude) || 26.8467,
+        longitude: Number(longitude) || 80.9462,
+        timestamp: new Date().toISOString(),
+        status: "pending_ai",
+        createdAt: new Date().toISOString(),
+      };
+
+      db.claims.unshift(newClaim);
+      saveDB(db);
+
+      res.status(201).json(newClaim);
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -480,18 +670,36 @@ app.post("/api/claims", async (req, res) => {
 app.post("/api/claims/:id/analyze", async (req, res) => {
   try {
     const claimId = req.params.id;
-    const db = getDB();
-    const claimIndex = db.claims.findIndex((c) => c.id === claimId);
-    
-    if (claimIndex === -1) {
-      return res.status(404).json({ error: "Claim not found" });
+    let claim: any;
+    let db: any;
+    let claimIndex = -1;
+
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("claims")
+        .select("*")
+        .eq("id", claimId)
+        .single();
+      if (error || !data) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+      claim = mapClaimToFrontend(data);
+      
+      // Clean existing results for re-evaluation
+      await Promise.all([
+        supabase.from("ai_results").delete().eq("claim_id", claimId),
+        supabase.from("weather_verifications").delete().eq("claim_id", claimId),
+      ]);
+    } else {
+      db = getDB();
+      claimIndex = db.claims.findIndex((c) => c.id === claimId);
+      if (claimIndex === -1) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+      claim = db.claims[claimIndex];
+      db.aiResults = db.aiResults.filter((r) => r.claimId !== claimId);
+      db.weatherVerifications = db.weatherVerifications.filter((w) => w.claimId !== claimId);
     }
-
-    const claim = db.claims[claimIndex];
-
-    // Remove existing AI and weather results for re-evaluation
-    db.aiResults = db.aiResults.filter((r) => r.claimId !== claimId);
-    db.weatherVerifications = db.weatherVerifications.filter((w) => w.claimId !== claimId);
 
     let base64Image = "";
     if (claim.imageUrl.startsWith("data:image")) {
@@ -621,13 +829,33 @@ Do not add markdown formatting or wrappers outside the raw JSON object. Use vali
       analyzedAt: new Date().toISOString(),
     };
 
-    db.aiResults.push(aiResult);
+    if (supabase) {
+      const { error: aiErr } = await supabase.from("ai_results").insert([{
+        claim_id: claimId,
+        crop_type_detected: resultJson.cropTypeDetected,
+        damage_type_detected: resultJson.damageTypeDetected,
+        severity: resultJson.severity,
+        severity_percent: resultJson.severityPercent,
+        confidence_score: resultJson.confidenceScore,
+        reasoning: resultJson.reasoning,
+        manual_review_required: resultJson.manualReviewRequired
+      }]);
+      if (aiErr) throw aiErr;
+    } else {
+      db.aiResults.push(aiResult);
+    }
 
     // Weather check logic (Only for Flood, Drought, Hail)
     const isWeatherRequired = ["Flood", "Drought", "Hail"].includes(claim.damageType);
+    let finalStatus = "pending_officer";
+
     if (isWeatherRequired) {
-      db.claims[claimIndex].status = "pending_weather";
-      saveDB(db);
+      if (supabase) {
+        await supabase.from("claims").update({ status: "pending_weather" }).eq("id", claimId);
+      } else {
+        db.claims[claimIndex].status = "pending_weather";
+        saveDB(db);
+      }
 
       // Fetch or simulate weather verification
       let weatherData: any;
@@ -709,15 +937,39 @@ Do not add markdown formatting or wrappers outside the raw JSON object. Use vali
         checkedAt: new Date().toISOString()
       };
 
-      db.weatherVerifications.push(weatherVerification);
-      db.claims[claimIndex].status = "pending_officer";
+      if (supabase) {
+        const { error: wetErr } = await supabase.from("weather_verifications").insert([{
+          claim_id: claimId,
+          verified: isVerified,
+          temperature: weatherData.main.temp,
+          humidity: weatherData.main.humidity,
+          precipitation: weatherVerification.precipitation,
+          weather_description: weatherVerification.weatherDescription,
+          wind_speed: weatherVerification.windSpeed,
+          station_name: weatherVerification.stationName,
+          analysis_note: weatherVerification.analysisNote
+        }]);
+        if (wetErr) throw wetErr;
+        await supabase.from("claims").update({ status: "pending_officer" }).eq("id", claimId);
+      } else {
+        db.weatherVerifications.push(weatherVerification);
+        db.claims[claimIndex].status = "pending_officer";
+      }
+      finalStatus = "pending_officer";
     } else {
       // Pest, disease, etc. skip weather check, move straight to officer review
-      db.claims[claimIndex].status = "pending_officer";
+      if (supabase) {
+        await supabase.from("claims").update({ status: "pending_officer" }).eq("id", claimId);
+      } else {
+        db.claims[claimIndex].status = "pending_officer";
+      }
+      finalStatus = "pending_officer";
     }
 
-    saveDB(db);
-    res.json({ success: true, status: db.claims[claimIndex].status });
+    if (!supabase) {
+      saveDB(db);
+    }
+    res.json({ success: true, status: finalStatus });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -737,16 +989,31 @@ app.post("/api/claims/:id/decide", async (req, res) => {
       return res.status(400).json({ error: "Unsupported claim decision status" });
     }
 
-    const db = getDB();
-    const claimIndex = db.claims.findIndex((claim) => claim.id === claimId);
-    if (claimIndex === -1) {
-      return res.status(404).json({ error: "Claim not found" });
+    let claim: any;
+    let db: any;
+    let claimIndex = -1;
+
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("claims")
+        .select("*")
+        .eq("id", claimId)
+        .single();
+      if (error || !data) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+      claim = mapClaimToFrontend(data);
+    } else {
+      db = getDB();
+      claimIndex = db.claims.findIndex((claim) => claim.id === claimId);
+      if (claimIndex === -1) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+      claim = db.claims[claimIndex];
     }
 
-    const claim = db.claims[claimIndex];
     const decidedAt = new Date().toISOString();
     const newDecision = {
-      id: "dec-" + Date.now(),
       claimId,
       officerId,
       officerName,
@@ -808,12 +1075,28 @@ app.post("/api/claims/:id/decide", async (req, res) => {
       }
     }
 
-    const lastBlock = db.blockchainBlocks[db.blockchainBlocks.length - 1];
-    const previousHash = lastBlock?.currentHash || "0x0";
+    let previousHash = "0x0";
+    let blockNumber = 0;
+
+    if (supabase) {
+      const { data: lastLogs } = await supabase
+        .from("blockchain_logs")
+        .select("current_hash, block_number")
+        .order("block_number", { ascending: false })
+        .limit(1);
+      
+      const lastBlock = lastLogs?.[0];
+      previousHash = lastBlock?.current_hash || "0x0";
+      blockNumber = lastBlock ? Number(lastBlock.block_number) + 1 : 0;
+    } else {
+      const lastBlock = db.blockchainBlocks[db.blockchainBlocks.length - 1];
+      previousHash = lastBlock?.currentHash || "0x0";
+      blockNumber = lastBlock ? Number(lastBlock.blockNumber) + 1 : 0;
+    }
+
     let nonce = 0;
 
     if (!blockchainRecord) {
-      const blockNumber = lastBlock ? Number(lastBlock.blockNumber) + 1 : 0;
       const walletAddress = officerWallet || "0x" + crypto.randomBytes(20).toString("hex");
       let simulatedHash = "";
 
@@ -834,40 +1117,81 @@ app.post("/api/claims/:id/decide", async (req, res) => {
       };
     }
 
-    db.blockchainBlocks.push({
-      blockNumber: blockchainRecord.blockNumber,
-      claimId,
-      evidenceHash,
-      status: statusSelected,
-      timestamp: blockchainRecord.timestamp,
-      officerWallet: blockchainRecord.walletAddress,
-      previousHash,
-      currentHash: blockchainRecord.txHash,
-      nonce,
-      network: blockchainRecord.network,
-      simulated: blockchainRecord.simulated,
-      explorerUrl: blockchainRecord.explorerUrl || "",
-    });
+    const blockchainMode = blockchainRecord.simulated ? "simulated" : "sepolia";
 
-    claim.status = statusSelected;
-    claim.blockchainTxHash = blockchainRecord.txHash;
-    claim.blockchainBlockNumber = blockchainRecord.blockNumber;
-    claim.blockchainNetwork = blockchainRecord.network;
-    claim.blockchainMode = blockchainRecord.simulated ? "simulated" : "sepolia";
-    claim.blockchainExplorerUrl = blockchainRecord.explorerUrl || "";
+    if (supabase) {
+      await Promise.all([
+        supabase.from("blockchain_logs").insert([{
+          block_number: blockchainRecord.blockNumber,
+          claim_id: claimId,
+          evidence_hash: evidenceHash,
+          status: statusSelected,
+          timestamp: blockchainRecord.timestamp,
+          officer_wallet: blockchainRecord.walletAddress,
+          previous_hash: previousHash,
+          current_hash: blockchainRecord.txHash,
+          nonce,
+          network: blockchainRecord.network,
+          simulated: blockchainRecord.simulated,
+          explorer_url: blockchainRecord.explorerUrl || ""
+        }]),
+        supabase.from("officer_decisions").insert([{
+          claim_id: claimId,
+          officer_id: ID_MAP[officerId] || officerId,
+          officer_name: officerName,
+          status_selected: statusSelected,
+          comments,
+          blockchain_block_id: blockchainRecord.blockNumber,
+        }]),
+        supabase.from("claims").update({
+          status: statusSelected,
+          blockchain_tx_hash: blockchainRecord.txHash,
+          blockchain_block_number: blockchainRecord.blockNumber,
+          blockchain_network: blockchainRecord.network,
+          blockchain_mode: blockchainMode,
+          blockchain_explorer_url: blockchainRecord.explorerUrl || ""
+        }).eq("id", claimId)
+      ]);
+    } else {
+      db.blockchainBlocks.push({
+        blockNumber: blockchainRecord.blockNumber,
+        claimId,
+        evidenceHash,
+        status: statusSelected,
+        timestamp: blockchainRecord.timestamp,
+        officerWallet: blockchainRecord.walletAddress,
+        previousHash,
+        currentHash: blockchainRecord.txHash,
+        nonce,
+        network: blockchainRecord.network,
+        simulated: blockchainRecord.simulated,
+        explorerUrl: blockchainRecord.explorerUrl || "",
+      });
 
-    newDecision.blockchainBlockId = blockchainRecord.blockNumber;
-    newDecision.blockchainMode = claim.blockchainMode;
-    db.officerDecisions.push(newDecision);
-    db.claims[claimIndex] = claim;
-    saveDB(db);
+      claim.status = statusSelected;
+      claim.blockchainTxHash = blockchainRecord.txHash;
+      claim.blockchainBlockNumber = blockchainRecord.blockNumber;
+      claim.blockchainNetwork = blockchainRecord.network;
+      claim.blockchainMode = blockchainMode;
+      claim.blockchainExplorerUrl = blockchainRecord.explorerUrl || "";
+
+      newDecision.blockchainBlockId = blockchainRecord.blockNumber;
+      newDecision.blockchainMode = blockchainMode;
+      
+      db.officerDecisions.push({
+        id: "dec-" + Date.now(),
+        ...newDecision
+      });
+      db.claims[claimIndex] = claim;
+      saveDB(db);
+    }
 
     res.json({
       success: true,
       claimStatus: statusSelected,
       txHash: blockchainRecord.txHash,
       blockNumber: blockchainRecord.blockNumber,
-      blockchainMode: claim.blockchainMode,
+      blockchainMode,
       network: blockchainRecord.network,
       explorerUrl: blockchainRecord.explorerUrl || null,
       warning: blockchainWarning || null,
@@ -878,7 +1202,7 @@ app.post("/api/claims/:id/decide", async (req, res) => {
 });
 
 // 6. SUBMIT FARMER APPEAL
-app.post("/api/claims/:id/appeal", (req, res) => {
+app.post("/api/claims/:id/appeal", async (req, res) => {
   try {
     const claimId = req.params.id;
     const { farmerId, reason, newEvidenceUrl } = req.body;
@@ -887,30 +1211,46 @@ app.post("/api/claims/:id/appeal", (req, res) => {
       return res.status(400).json({ error: "Missing required appeal fields" });
     }
 
-    const db = getDB();
-    const claimIndex = db.claims.findIndex((c) => c.id === claimId);
-    if (claimIndex === -1) {
-      return res.status(404).json({ error: "Claim not found" });
+    if (supabase) {
+      const { data: claim, error: claimErr } = await supabase.from("claims").select("id").eq("id", claimId).single();
+      if (claimErr || !claim) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+
+      await Promise.all([
+        supabase.from("claims").update({ status: "appealed" }).eq("id", claimId),
+        supabase.from("appeals").upsert([{
+          claim_id: claimId,
+          farmer_id: ID_MAP[farmerId] || farmerId,
+          reason,
+          new_evidence_url: newEvidenceUrl || "",
+          status: "pending"
+        }], { onConflict: "claim_id" })
+      ]);
+    } else {
+      const db = getDB();
+      const claimIndex = db.claims.findIndex((c) => c.id === claimId);
+      if (claimIndex === -1) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+
+      db.claims[claimIndex].status = "appealed";
+
+      const appealId = "app-" + Date.now();
+      const newAppeal = {
+        id: appealId,
+        claimId,
+        farmerId,
+        reason,
+        newEvidenceUrl: newEvidenceUrl || "",
+        status: "pending",
+        createdAt: new Date().toISOString()
+      };
+
+      db.appeals = db.appeals.filter((a) => a.claimId !== claimId);
+      db.appeals.push(newAppeal);
+      saveDB(db);
     }
-
-    // Update claim status to appealed
-    db.claims[claimIndex].status = "appealed";
-
-    const appealId = "app-" + Date.now();
-    const newAppeal = {
-      id: appealId,
-      claimId,
-      farmerId,
-      reason,
-      newEvidenceUrl: newEvidenceUrl || "",
-      status: "pending",
-      createdAt: new Date().toISOString()
-    };
-
-    db.appeals = db.appeals.filter((a) => a.claimId !== claimId);
-    db.appeals.push(newAppeal);
-
-    saveDB(db);
 
     res.json({ success: true, status: "appealed" });
   } catch (error: any) {
@@ -919,18 +1259,30 @@ app.post("/api/claims/:id/appeal", (req, res) => {
 });
 
 // 7. SUBMIT SUPPLEMENTAL EVIDENCE (for more_evidence claims)
-app.post("/api/claims/:id/supplemental-evidence", (req, res) => {
+app.post("/api/claims/:id/supplemental-evidence", async (req, res) => {
   try {
     const claimId = req.params.id;
     const { additionalDescription, additionalImageUrls } = req.body;
 
-    const db = getDB();
-    const claimIndex = db.claims.findIndex((c) => c.id === claimId);
-    if (claimIndex === -1) {
-      return res.status(404).json({ error: "Claim not found" });
+    let claim: any;
+    let db: any;
+    let claimIndex = -1;
+
+    if (supabase) {
+      const { data, error } = await supabase.from("claims").select("*").eq("id", claimId).single();
+      if (error || !data) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+      claim = mapClaimToFrontend(data);
+    } else {
+      db = getDB();
+      claimIndex = db.claims.findIndex((c) => c.id === claimId);
+      if (claimIndex === -1) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+      claim = db.claims[claimIndex];
     }
 
-    const claim = db.claims[claimIndex];
     if (claim.status !== "more_evidence") {
       return res.status(400).json({ error: "Claim is not awaiting evidence" });
     }
@@ -943,18 +1295,25 @@ app.post("/api/claims/:id/supplemental-evidence", (req, res) => {
       submittedAt,
     };
 
-    // Keep re-submitted evidence separate from the originally filed statement and photos.
-    claim.supplementalEvidence = [
+    const newEvidenceList = [
       ...(Array.isArray(claim.supplementalEvidence) ? claim.supplementalEvidence : []),
       supplementalSubmission,
     ];
-    claim.supplementalEvidenceAt = submittedAt;
 
-    // Move back to officer review queue
-    claim.status = "pending_officer";
-
-    db.claims[claimIndex] = claim;
-    saveDB(db);
+    if (supabase) {
+      const { error: updErr } = await supabase.from("claims").update({
+        status: "pending_officer",
+        supplemental_evidence: newEvidenceList,
+        supplemental_evidence_at: submittedAt
+      }).eq("id", claimId);
+      if (updErr) throw updErr;
+    } else {
+      claim.supplementalEvidence = newEvidenceList;
+      claim.supplementalEvidenceAt = submittedAt;
+      claim.status = "pending_officer";
+      db.claims[claimIndex] = claim;
+      saveDB(db);
+    }
 
     res.json({ success: true, status: "pending_officer", supplementalSubmission });
   } catch (error: any) {
@@ -963,10 +1322,32 @@ app.post("/api/claims/:id/supplemental-evidence", (req, res) => {
 });
 
 // 8. GET COMPLETE BLOCKCHAIN LEDGER
-app.get("/api/blockchain", (req, res) => {
+app.get("/api/blockchain", async (req, res) => {
   try {
-    const db = getDB();
-    res.json(db.blockchainBlocks);
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("blockchain_logs")
+        .select("*")
+        .order("block_number", { ascending: true });
+      if (error) throw error;
+      res.json(data.map((b: any) => ({
+        blockNumber: b.block_number,
+        claimId: b.claim_id,
+        evidenceHash: b.evidence_hash,
+        status: b.status,
+        timestamp: b.timestamp,
+        officerWallet: b.officer_wallet,
+        previousHash: b.previous_hash,
+        currentHash: b.current_hash,
+        nonce: b.nonce,
+        network: b.network || "local-simulator",
+        simulated: b.simulated,
+        explorerUrl: b.explorer_url || ""
+      })));
+    } else {
+      const db = getDB();
+      res.json(db.blockchainBlocks);
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -984,31 +1365,58 @@ app.get("/api/blockchain/status", (_req, res) => {
 });
 
 // 9. GET HIGH LEVEL LEDGER STATISTICS (for landing page / admin dashboard)
-app.get("/api/stats", (req, res) => {
+app.get("/api/stats", async (req, res) => {
   try {
-    const db = getDB();
-    const totalClaims = db.claims.length;
-    const approvedClaims = db.claims.filter((c) => c.status === "approved").length;
-    const rejectedClaims = db.claims.filter((c) => c.status === "rejected").length;
-    const pendingClaims = db.claims.filter((c) => ["pending_ai", "pending_weather", "pending_officer"].includes(c.status)).length;
+    if (supabase) {
+      const [claimsRes, blocksRes, weatherRes] = await Promise.all([
+        supabase.from("claims").select("status, estimated_loss_inr"),
+        supabase.from("blockchain_logs").select("id", { count: "exact" }),
+        supabase.from("weather_verifications").select("verified")
+      ]);
 
-    // Financial calculations
-    const totalDisbursedInr = db.claims
-      .filter((c) => c.status === "approved")
-      .reduce((sum, c) => sum + c.estimatedLossInr, 0);
+      const claimsData = claimsRes.data || [];
+      const totalClaims = claimsData.length;
+      const approvedClaims = claimsData.filter((c) => c.status === "approved").length;
+      const rejectedClaims = claimsData.filter((c) => c.status === "rejected").length;
+      const pendingClaims = claimsData.filter((c) => ["pending_ai", "pending_weather", "pending_officer"].includes(c.status)).length;
+      
+      const totalDisbursedInr = claimsData
+        .filter((c) => c.status === "approved")
+        .reduce((sum, c) => sum + Number(c.estimated_loss_inr), 0);
 
-    // Weather warnings
-    const wetVerifications = db.weatherVerifications.filter((v) => v.verified).length;
+      const totalSecuredBlocks = blocksRes.count || 0;
+      const wetVerifications = (weatherRes.data || []).filter((v) => v.verified).length;
 
-    res.json({
-      totalClaims,
-      approvedClaims,
-      rejectedClaims,
-      pendingClaims,
-      totalDisbursedInr,
-      totalSecuredBlocks: db.blockchainBlocks.length,
-      weatherVerifiedPercentage: totalClaims > 0 ? Math.round((wetVerifications / totalClaims) * 100) : 0
-    });
+      res.json({
+        totalClaims,
+        approvedClaims,
+        rejectedClaims,
+        pendingClaims,
+        totalDisbursedInr,
+        totalSecuredBlocks,
+        weatherVerifiedPercentage: totalClaims > 0 ? Math.round((wetVerifications / totalClaims) * 100) : 0
+      });
+    } else {
+      const db = getDB();
+      const totalClaims = db.claims.length;
+      const approvedClaims = db.claims.filter((c) => c.status === "approved").length;
+      const rejectedClaims = db.claims.filter((c) => c.status === "rejected").length;
+      const pendingClaims = db.claims.filter((c) => ["pending_ai", "pending_weather", "pending_officer"].includes(c.status)).length;
+      const totalDisbursedInr = db.claims
+        .filter((c) => c.status === "approved")
+        .reduce((sum, c) => sum + c.estimatedLossInr, 0);
+      const wetVerifications = db.weatherVerifications.filter((v) => v.verified).length;
+
+      res.json({
+        totalClaims,
+        approvedClaims,
+        rejectedClaims,
+        pendingClaims,
+        totalDisbursedInr,
+        totalSecuredBlocks: db.blockchainBlocks.length,
+        weatherVerifiedPercentage: totalClaims > 0 ? Math.round((wetVerifications / totalClaims) * 100) : 0
+      });
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
