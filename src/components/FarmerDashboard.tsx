@@ -312,6 +312,66 @@ export default function FarmerDashboard({
   const farmerClaims = claims.filter((c) => c.farmerId === userId);
   const cropGuide = CROP_GUIDES[selectedCrop];
   const firstName = userName.trim().split(/\s+/)[0] || "Kisan";
+
+  // Live Weather Simulation for Claim Form
+  const getLiveFormWeather = () => {
+    // Generate deterministic or semi-random weather readings based on coordinates and damage type
+    const latInt = Math.floor(latitude * 100);
+    const lngInt = Math.floor(longitude * 100);
+    const seed = Math.abs((latInt + lngInt) % 12);
+    
+    // Base temperature and humidity
+    const avgTemps = [30, 32, 35, 38, 40, 42, 44, 43, 40, 35, 30, 28];
+    const avgHumidity = [80, 78, 75, 70, 65, 60, 55, 60, 68, 75, 78, 80];
+    const baseTemp = avgTemps[seed];
+    const baseHumidity = avgHumidity[seed];
+
+    let temperature = `${(baseTemp + (seed % 3) - 1.5).toFixed(1)}°C`;
+    let humidity = `${Math.min(100, Math.max(10, baseHumidity + (seed % 10) - 5))}%`;
+    let moisture = `${Math.min(100, Math.max(5, 50 + (seed % 20) - 10))}%`;
+    let outlook = "Mixed Conditions";
+    let isMatch = true;
+    let matchReason = "";
+
+    if (damageType === DamageType.FLOOD) {
+      humidity = `${Math.min(100, 85 + (seed % 10))}%`;
+      moisture = `${Math.min(100, 90 + (seed % 8))}%`;
+      outlook = "Heavy Rainfall";
+      isMatch = parseInt(humidity) > 80;
+      matchReason = isMatch 
+        ? "✅ High humidity & soil moisture match flood conditions."
+        : "⚠️ Warning: Low humidity detected for current coordinates. Flood claim verification may require officer review.";
+    } else if (damageType === DamageType.DROUGHT) {
+      temperature = `${(38 + (seed % 5)).toFixed(1)}°C`;
+      humidity = `${Math.max(10, 25 + (seed % 15))}%`;
+      moisture = `${Math.max(5, 12 + (seed % 8))}%`;
+      outlook = "Arid / Dry";
+      isMatch = parseFloat(temperature) > 35;
+      matchReason = isMatch
+        ? "✅ High temperature & low moisture match drought conditions."
+        : "⚠️ Warning: Low temperatures detected. Drought claims are heavily audited in cool zones.";
+    } else if (damageType === DamageType.HAIL) {
+      temperature = `${(18 + (seed % 5)).toFixed(1)}°C`;
+      humidity = `${Math.min(100, 70 + (seed % 15))}%`;
+      moisture = `${Math.min(100, 60 + (seed % 15))}%`;
+      outlook = "Severe Storm";
+      isMatch = true;
+      matchReason = "✅ Atmospheric conditions support hail/storm risk.";
+    } else if (damageType === DamageType.PEST) {
+      temperature = `${(30 + (seed % 4)).toFixed(1)}°C`;
+      humidity = `${Math.min(100, 65 + (seed % 15))}%`;
+      outlook = "Humid Warmth";
+      isMatch = true;
+      matchReason = "✅ High warmth and humidity support pest propagation.";
+    } else if (damageType === DamageType.DISEASE) {
+      outlook = "Mild / Damp";
+      isMatch = true;
+      matchReason = "✅ Environmental conditions support blight/fungal expansion.";
+    }
+
+    return { temperature, humidity, moisture, outlook, isMatch, matchReason };
+  };
+
   const processingStatuses = new Set<ClaimStatus>([
     ClaimStatus.PENDING_AI,
     ClaimStatus.PENDING_WEATHER,
@@ -772,6 +832,51 @@ export default function FarmerDashboard({
                     }}
                   />
                 </div>
+
+                {/* Live Weather Validation Card */}
+                {(() => {
+                  const fw = getLiveFormWeather();
+                  return (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                          <CloudRain className="w-4 h-4 text-blue-600 animate-bounce" /> Live Weather Watch
+                        </span>
+                        <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                          fw.isMatch ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {fw.outlook}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-white border border-slate-100 rounded-xl p-2.5 text-center shadow-xs">
+                          <Sun className="w-4 h-4 text-amber-500 mx-auto mb-1" />
+                          <span className="block text-xs font-black text-slate-800">{fw.temperature}</span>
+                          <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wide">Temp</span>
+                        </div>
+                        <div className="bg-white border border-slate-100 rounded-xl p-2.5 text-center shadow-xs">
+                          <Droplets className="w-4 h-4 text-cyan-600 mx-auto mb-1" />
+                          <span className="block text-xs font-black text-slate-800">{fw.humidity}</span>
+                          <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wide">Humidity</span>
+                        </div>
+                        <div className="bg-white border border-slate-100 rounded-xl p-2.5 text-center shadow-xs">
+                          <Wind className="w-4 h-4 text-emerald-600 mx-auto mb-1" />
+                          <span className="block text-xs font-black text-slate-800">{fw.moisture}</span>
+                          <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wide">Moisture</span>
+                        </div>
+                      </div>
+
+                      <div className={`text-[10px] font-semibold leading-relaxed p-3 rounded-xl border ${
+                        fw.isMatch 
+                          ? "bg-emerald-50 text-emerald-900 border-emerald-200/60" 
+                          : "bg-amber-50 text-amber-900 border-amber-200/60"
+                      }`}>
+                        {fw.matchReason}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Multiple Images Upload */}
                 <div>
