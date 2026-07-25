@@ -18,7 +18,7 @@ CREATE TYPE damage_severity AS ENUM ('Low', 'Medium', 'High', 'Critical');
 
 -- 2. Users Table (Linked to Supabase Auth)
 CREATE TABLE public.profiles (
-  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  id UUID PRIMARY KEY,
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   role user_role NOT NULL DEFAULT 'farmer',
