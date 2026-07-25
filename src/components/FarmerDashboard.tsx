@@ -1,13 +1,17 @@
 import { useState, ChangeEvent, FormEvent, useRef } from "react";
 import { 
-  FileText, Plus, Landmark, Eye, CloudRain, AlertCircle, Sparkles, 
+  FileText, Plus, Landmark, CloudRain, AlertCircle, Sparkles, 
   MapPin, CheckCircle2, ChevronRight, Upload, Calendar, ArrowLeft,
-  Image as ImageIcon, X, ZoomIn, FlaskConical, Send
+  Image as ImageIcon, X, ZoomIn, FlaskConical, Send, Bell, Search,
+  ShieldCheck, IndianRupee, Wheat, Droplets, Sun, Wind, ExternalLink,
+  TrendingUp, RefreshCw, Clock3, CircleHelp, ArrowUpRight, Tractor,
+  RotateCcw
 } from "lucide-react";
 import { Claim, DamageType, ClaimStatus } from "../types";
 import MapComponent from "./MapComponent";
 import TimelineComponent from "./TimelineComponent";
 import LocationPicker from "./LocationPicker";
+import farmerHero from "../../landing_farmer_realistic.png";
 
 interface FarmerDashboardProps {
   userId: string;
@@ -68,6 +72,72 @@ const TEST_CROP_PRESETS = [
   }
 ];
 
+const CROP_GUIDES = {
+  paddy: {
+    name: "Paddy",
+    variety: "Kharif · field stage",
+    icon: "🌾",
+    temperature: "28°C",
+    humidity: "82%",
+    moisture: "74%",
+    outlook: "Rain watch",
+    accent: "from-emerald-700 to-green-900",
+    advisory: "Clear blocked drainage channels and photograph waterlogging before field work.",
+    task: "Inspect bunds before 6:00 PM",
+  },
+  wheat: {
+    name: "Wheat",
+    variety: "Rabi · planning",
+    icon: "🌱",
+    temperature: "24°C",
+    humidity: "58%",
+    moisture: "48%",
+    outlook: "Dry window",
+    accent: "from-amber-600 to-orange-800",
+    advisory: "Use the dry window for plot inspection and record any lodging or hail damage.",
+    task: "Review seed and soil records",
+  },
+  cotton: {
+    name: "Cotton",
+    variety: "Kharif · growth",
+    icon: "☁️",
+    temperature: "31°C",
+    humidity: "66%",
+    moisture: "56%",
+    outlook: "Pest watch",
+    accent: "from-lime-700 to-emerald-900",
+    advisory: "Check the underside of leaves and capture close, well-lit pest evidence.",
+    task: "Complete a morning pest walk",
+  },
+} as const;
+
+type CropGuideKey = keyof typeof CROP_GUIDES;
+type ClaimFilter = "all" | "action" | "processing" | "approved";
+
+const FARMER_REFERENCES = [
+  {
+    label: "PMFBY",
+    title: "Policy & claim services",
+    description: "Check application status, insurance tools and crop-loss support.",
+    href: "https://pmfby.gov.in/claimProcess",
+    icon: ShieldCheck,
+  },
+  {
+    label: "IMD Agromet",
+    title: "Weather advisories",
+    description: "Open official agricultural weather services and farmer advisories.",
+    href: "https://mausam.imd.gov.in/responsive/servicesMetAgriculture.php",
+    icon: CloudRain,
+  },
+  {
+    label: "e-NAM",
+    title: "Live mandi prices",
+    description: "Compare official commodity-wise and state-wise market information.",
+    href: "https://enam.gov.in/web/dashboard/live_price",
+    icon: TrendingUp,
+  },
+] as const;
+
 export default function FarmerDashboard({
   userId,
   userName,
@@ -96,6 +166,10 @@ export default function FarmerDashboard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [selectedCrop, setSelectedCrop] = useState<CropGuideKey>("paddy");
+  const [claimFilter, setClaimFilter] = useState<ClaimFilter>("all");
+  const [claimSearch, setClaimSearch] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Appeal states
@@ -236,11 +310,56 @@ export default function FarmerDashboard({
   };
 
   const farmerClaims = claims.filter((c) => c.farmerId === userId);
+  const cropGuide = CROP_GUIDES[selectedCrop];
+  const firstName = userName.trim().split(/\s+/)[0] || "Kisan";
+  const processingStatuses = new Set<ClaimStatus>([
+    ClaimStatus.PENDING_AI,
+    ClaimStatus.PENDING_WEATHER,
+    ClaimStatus.PENDING_OFFICER,
+    ClaimStatus.APPEALED,
+  ]);
+  const actionStatuses = new Set<ClaimStatus>([
+    ClaimStatus.MORE_EVIDENCE,
+    ClaimStatus.REJECTED,
+  ]);
+  const approvedClaims = farmerClaims.filter((claim) => claim.status === ClaimStatus.APPROVED);
+  const processingClaims = farmerClaims.filter((claim) => processingStatuses.has(claim.status));
+  const actionClaims = farmerClaims.filter((claim) => actionStatuses.has(claim.status));
+  const protectedValue = farmerClaims.reduce((total, claim) => total + claim.estimatedLossInr, 0);
+  const approvedValue = approvedClaims.reduce((total, claim) => total + claim.estimatedLossInr, 0);
+  const normalizedSearch = claimSearch.trim().toLowerCase();
+  const filteredClaims = farmerClaims.filter((claim) => {
+    const matchesFilter =
+      claimFilter === "all" ||
+      (claimFilter === "action" && actionStatuses.has(claim.status)) ||
+      (claimFilter === "processing" && processingStatuses.has(claim.status)) ||
+      (claimFilter === "approved" && claim.status === ClaimStatus.APPROVED);
+    const matchesSearch =
+      !normalizedSearch ||
+      claim.id.toLowerCase().includes(normalizedSearch) ||
+      claim.cropType.toLowerCase().includes(normalizedSearch) ||
+      claim.damageType.toLowerCase().includes(normalizedSearch);
+    return matchesFilter && matchesSearch;
+  });
+
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const openClaimForm = () => {
+    setShowSubmitForm(true);
+    window.requestAnimationFrame(() => scrollToSection("claims-hub"));
+  };
+
+  const focusClaims = () => {
+    setShowSubmitForm(false);
+    scrollToSection("claims-hub");
+  };
 
   const statusColors: Record<ClaimStatus, string> = {
-    pending_ai: "bg-slate-100 text-slate-700 border-slate-200",
-    pending_weather: "bg-purple-50 text-purple-700 border-purple-100",
-    pending_officer: "bg-blue-50 text-blue-700 border-blue-100",
+    pending_ai: "bg-stone-100 text-stone-700 border-stone-200",
+    pending_weather: "bg-cyan-50 text-cyan-800 border-cyan-100",
+    pending_officer: "bg-sky-50 text-sky-800 border-sky-100",
     approved: "bg-emerald-50 text-emerald-700 border-emerald-100",
     rejected: "bg-rose-50 text-rose-700 border-rose-100",
     more_evidence: "bg-amber-50 text-amber-700 border-amber-100",
@@ -274,19 +393,260 @@ export default function FarmerDashboard({
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="farmer-dashboard space-y-6">
+        <section className={`farmer-command overflow-hidden rounded-[2rem] bg-gradient-to-br ${cropGuide.accent} text-white shadow-xl shadow-emerald-950/10`}>
+          <div className="farmer-command__image" style={{ backgroundImage: `url(${farmerHero})` }} />
+          <div className="farmer-command__veil" />
+          <div className="farmer-command__content">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/15 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-300 text-emerald-950 shadow-lg shadow-black/10">
+                  <Tractor className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-amber-200">My farm command centre</p>
+                  <p className="text-sm font-semibold text-white/80">Namaste, {firstName}. Your field record is ready.</p>
+                </div>
+              </div>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label="Show farmer notifications"
+                  aria-expanded={showNotifications}
+                  onClick={() => setShowNotifications((visible) => !visible)}
+                  className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20"
+                >
+                  <Bell className="h-4 w-4" />
+                  {actionClaims.length > 0 && (
+                    <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-300 px-1 text-[9px] font-black text-emerald-950">
+                      {actionClaims.length}
+                    </span>
+                  )}
+                </button>
+                {showNotifications && (
+                  <div className="absolute right-0 top-12 z-30 w-72 rounded-2xl border border-emerald-100 bg-white p-4 text-slate-800 shadow-2xl">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-xs font-extrabold">Farm notifications</p>
+                      <button type="button" onClick={() => setShowNotifications(false)} aria-label="Close notifications">
+                        <X className="h-4 w-4 text-slate-400" />
+                      </button>
+                    </div>
+                    <div className="space-y-2 text-[11px]">
+                      <button type="button" onClick={() => { setClaimFilter("action"); focusClaims(); setShowNotifications(false); }} className="w-full rounded-xl bg-amber-50 p-3 text-left text-amber-900 transition hover:bg-amber-100">
+                        <strong className="block">{actionClaims.length || "No"} claim{actionClaims.length === 1 ? "" : "s"} need attention</strong>
+                        <span className="text-amber-700">Open requests for evidence or appeal options.</span>
+                      </button>
+                      <div className="rounded-xl bg-emerald-50 p-3 text-emerald-900">
+                        <strong className="block">{cropGuide.name} field reminder</strong>
+                        <span className="text-emerald-700">{cropGuide.task}.</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-8 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+              <div>
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-50 backdrop-blur">
+                  <span className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_0_4px_rgba(253,224,71,0.16)]" />
+                  Kharif 2026 · Lucknow field ledger
+                </div>
+                <h1 className="max-w-2xl font-display text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+                  Protect the crop.<br />
+                  <span className="text-amber-300">Prove every loss.</span>
+                </h1>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">
+                  File geo-tagged evidence, follow every verification step, and keep official farmer resources within reach.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={openClaimForm}
+                    className="inline-flex items-center gap-2 rounded-xl bg-amber-300 px-4 py-2.5 text-xs font-extrabold text-emerald-950 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-amber-200"
+                  >
+                    <Plus className="h-4 w-4" /> Report crop loss
+                  </button>
+                  <button
+                    type="button"
+                    onClick={focusClaims}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20"
+                  >
+                    <FileText className="h-4 w-4" /> Track my claims
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/15 bg-black/15 p-4 backdrop-blur-md">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-white/60">Active crop view</p>
+                    <p className="mt-1 text-sm font-bold">{cropGuide.name} field plan</p>
+                  </div>
+                  <span className="text-3xl" aria-hidden="true">{cropGuide.icon}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(CROP_GUIDES) as CropGuideKey[]).map((cropKey) => {
+                    const crop = CROP_GUIDES[cropKey];
+                    const isActive = selectedCrop === cropKey;
+                    return (
+                      <button
+                        key={cropKey}
+                        type="button"
+                        onClick={() => setSelectedCrop(cropKey)}
+                        aria-pressed={isActive}
+                        className={`rounded-xl border px-2 py-2 text-left transition ${
+                          isActive
+                            ? "border-amber-300 bg-amber-300 text-emerald-950"
+                            : "border-white/15 bg-white/5 text-white hover:bg-white/15"
+                        }`}
+                      >
+                        <span className="block text-[9px] font-extrabold uppercase tracking-wide">{crop.name}</span>
+                        <span className={`mt-0.5 block text-[8px] ${isActive ? "text-emerald-800" : "text-white/55"}`}>{crop.variety.split(" · ")[0]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-2 border-t border-white/15 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { label: "Total claims", value: farmerClaims.length.toString(), meta: `${processingClaims.length} moving` },
+                { label: "Protected value", value: `₹${protectedValue.toLocaleString("en-IN")}`, meta: "Across filed losses" },
+                { label: "Approved", value: approvedClaims.length.toString(), meta: `₹${approvedValue.toLocaleString("en-IN")} assessed` },
+                { label: "Needs action", value: actionClaims.length.toString(), meta: actionClaims.length ? "Review today" : "You are up to date" },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-xl border border-white/10 bg-white/[0.07] px-4 py-3">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/55">{stat.label}</p>
+                  <div className="mt-1 flex items-end justify-between gap-2">
+                    <strong className="text-xl font-extrabold text-white">{stat.value}</strong>
+                    <span className="text-[9px] text-amber-200">{stat.meta}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-5 lg:grid-cols-12" aria-label="Farm planning overview">
+          <article className="agri-panel lg:col-span-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="eyebrow"><CloudRain className="h-3.5 w-3.5" /> Field conditions</span>
+                <h2 className="mt-2 font-display text-xl font-extrabold text-slate-900">{cropGuide.name} weather watch</h2>
+                <p className="mt-1 text-xs text-slate-500">Demo field snapshot · use IMD for official advisories</p>
+              </div>
+              <span className="rounded-xl bg-cyan-50 px-3 py-1.5 text-[10px] font-extrabold text-cyan-800">{cropGuide.outlook}</span>
+            </div>
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              <div className="field-reading"><Sun className="h-4 w-4 text-amber-500" /><strong>{cropGuide.temperature}</strong><span>Temperature</span></div>
+              <div className="field-reading"><Droplets className="h-4 w-4 text-cyan-600" /><strong>{cropGuide.humidity}</strong><span>Humidity</span></div>
+              <div className="field-reading"><Wind className="h-4 w-4 text-emerald-600" /><strong>{cropGuide.moisture}</strong><span>Soil moisture</span></div>
+            </div>
+            <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+              <p className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-800">
+                <Wheat className="h-4 w-4" /> Today’s field note
+              </p>
+              <p className="mt-2 text-xs leading-5 text-emerald-950">{cropGuide.advisory}</p>
+            </div>
+          </article>
+
+          <article className="agri-panel lg:col-span-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="eyebrow"><Clock3 className="h-3.5 w-3.5" /> Claim readiness</span>
+                <h2 className="mt-2 font-display text-xl font-extrabold text-slate-900">Evidence checklist</h2>
+              </div>
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+            </div>
+            <div className="mt-5 space-y-3">
+              {[
+                ["Wide crop photo", "Show the affected field boundary"],
+                ["Close damage photo", "Capture leaves, stem or grain clearly"],
+                ["GPS & date", "Confirm location and incident date"],
+              ].map(([title, copy], index) => (
+                <div key={title} className="flex items-center gap-3">
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-800">{index + 1}</span>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">{title}</p>
+                    <p className="text-[10px] text-slate-500">{copy}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={openClaimForm} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-emerald-800">
+              Start guided claim <ChevronRight className="h-4 w-4" />
+            </button>
+          </article>
+
+          <article className="agri-panel lg:col-span-3">
+            <span className="eyebrow"><CircleHelp className="h-3.5 w-3.5" /> Quick help</span>
+            <h2 className="mt-2 font-display text-xl font-extrabold text-slate-900">Farmer support</h2>
+            <p className="mt-2 text-xs leading-5 text-slate-500">For PMFBY grievances and crop-loss reporting, use the official Krishi Rakshak channel.</p>
+            <a href="tel:14447" className="mt-5 flex items-center justify-between rounded-2xl bg-slate-950 p-4 text-white transition hover:bg-emerald-900">
+              <span>
+                <span className="block text-[9px] font-bold uppercase tracking-[0.16em] text-amber-300">Helpline</span>
+                <strong className="mt-1 block text-2xl">14447</strong>
+              </span>
+              <ArrowUpRight className="h-5 w-5" />
+            </a>
+            <p className="mt-3 text-[9px] leading-4 text-slate-400">Official PMFBY support reference. Call availability may depend on your network and region.</p>
+          </article>
+        </section>
+
+        <section id="farmer-resources" className="agri-panel scroll-mt-24">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <span className="eyebrow"><ExternalLink className="h-3.5 w-3.5" /> Trusted references</span>
+              <h2 className="mt-2 font-display text-xl font-extrabold text-slate-900">Official tools for your next decision</h2>
+              <p className="mt-1 text-xs text-slate-500">Open Government of India services in a new tab.</p>
+            </div>
+            <span className="rounded-full bg-stone-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-stone-600">External services</span>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {FARMER_REFERENCES.map((reference) => {
+              const ReferenceIcon = reference.icon;
+              return (
+                <a
+                  key={reference.label}
+                  href={reference.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="resource-card group"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 transition group-hover:bg-emerald-700 group-hover:text-white">
+                    <ReferenceIcon className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[9px] font-extrabold uppercase tracking-[0.15em] text-emerald-700">{reference.label}</span>
+                    <strong className="mt-1 block text-sm text-slate-900">{reference.title}</strong>
+                    <span className="mt-1 block text-[10px] leading-4 text-slate-500">{reference.description}</span>
+                  </span>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-emerald-700" />
+                </a>
+              );
+            })}
+          </div>
+        </section>
+
+        <div id="claims-hub" className="grid scroll-mt-24 grid-cols-1 gap-8 lg:grid-cols-12">
         {/* LEFT COLUMN: Claims list or submission form */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+          <div className="agri-panel">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">My Claims Hub</h2>
-                <p className="text-xs text-slate-500">Log new crop losses or track on-chain resolutions.</p>
+                <span className="eyebrow"><FileText className="h-3.5 w-3.5" /> Claim workspace</span>
+                <h2 className="mt-2 text-lg font-extrabold text-slate-900">My crop-loss ledger</h2>
+                <p className="text-xs text-slate-500">File evidence and follow every verification step.</p>
               </div>
               {!showSubmitForm && (
                 <button
                   onClick={() => setShowSubmitForm(true)}
-                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-800"
                 >
                   <Plus className="w-4 h-4" /> New Claim
                 </button>
@@ -511,15 +871,70 @@ export default function FarmerDashboard({
                 </button>
               </form>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
+                <div className="space-y-3 rounded-2xl border border-stone-200 bg-stone-50/70 p-3">
+                  <label className="relative block">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <span className="sr-only">Search claims</span>
+                    <input
+                      type="search"
+                      value={claimSearch}
+                      onChange={(event) => setClaimSearch(event.target.value)}
+                      placeholder="Search crop, cause or claim ID"
+                      className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-9 pr-3 text-xs outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15"
+                    />
+                  </label>
+                  <div className="flex gap-1.5 overflow-x-auto pb-1" aria-label="Filter farmer claims">
+                    {([
+                      ["all", `All ${farmerClaims.length}`],
+                      ["action", `Action ${actionClaims.length}`],
+                      ["processing", `Processing ${processingClaims.length}`],
+                      ["approved", `Approved ${approvedClaims.length}`],
+                    ] as [ClaimFilter, string][]).map(([filter, label]) => (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setClaimFilter(filter)}
+                        aria-pressed={claimFilter === filter}
+                        className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-bold transition ${
+                          claimFilter === filter
+                            ? "border-emerald-700 bg-emerald-700 text-white"
+                            : "border-stone-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-800"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={refreshClaims}
+                      className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-800"
+                    >
+                      <RefreshCw className="h-3 w-3" /> Refresh
+                    </button>
+                  </div>
+                </div>
+
                 {farmerClaims.length === 0 ? (
                   <div className="text-center py-12 text-slate-400">
                     <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                     <p className="text-xs font-semibold">No claims registered yet.</p>
                     <p className="text-[11px] mt-1 text-slate-400">Click &apos;New Claim&apos; above to file your first damage assessment.</p>
                   </div>
+                ) : filteredClaims.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-stone-200 py-10 text-center">
+                    <Search className="mx-auto h-7 w-7 text-stone-300" />
+                    <p className="mt-2 text-xs font-bold text-slate-700">No claims match this view</p>
+                    <button
+                      type="button"
+                      onClick={() => { setClaimFilter("all"); setClaimSearch(""); }}
+                      className="mt-2 text-[10px] font-bold text-emerald-700 hover:underline"
+                    >
+                      Clear filters
+                    </button>
+                  </div>
                 ) : (
-                  farmerClaims.map((claim) => {
+                  filteredClaims.map((claim) => {
                     const isSelected = selectedClaimId === claim.id;
                     const images = getClaimImages(claim);
 
@@ -529,8 +944,8 @@ export default function FarmerDashboard({
                         onClick={() => setSelectedClaimId(claim.id)}
                         className={`p-4 rounded-xl border cursor-pointer transition-all ${
                           isSelected
-                            ? "border-blue-600 bg-blue-50/20 shadow-sm"
-                            : "border-slate-100 bg-slate-50/50 hover:bg-slate-50"
+                            ? "border-emerald-600 bg-emerald-50/60 shadow-sm"
+                            : "border-stone-200 bg-stone-50/50 hover:border-emerald-200 hover:bg-emerald-50/30"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -579,8 +994,8 @@ export default function FarmerDashboard({
                             <Calendar className="w-3.5 h-3.5" />
                             {new Date(claim.createdAt).toLocaleDateString()}
                           </span>
-                          <span className="flex items-center gap-0.5 text-blue-600 hover:underline">
-                            Inspect Track <ChevronRight className="w-3 h-3" />
+                          <span className="flex items-center gap-0.5 font-bold text-emerald-700 hover:underline">
+                            View journey <ChevronRight className="w-3 h-3" />
                           </span>
                         </div>
                       </div>
@@ -641,12 +1056,20 @@ export default function FarmerDashboard({
 
                 {/* Auto AI Processing Indicator */}
                 {claimDetails.claim.status === "pending_ai" && (
-                  <div className="mt-6 p-4 bg-blue-50/55 border border-blue-100 rounded-xl flex items-center gap-4 animate-pulse">
-                    <Sparkles className="w-5 h-5 text-blue-600 shrink-0 animate-spin" />
-                    <div>
-                      <h4 className="text-xs font-bold text-blue-900">AI Analysis Running Automatically...</h4>
-                      <p className="text-[11px] text-slate-600">Gemini is currently assessing crop damage severity, local weather patterns and claim validity.</p>
+                  <div className="mt-6 flex flex-wrap items-center gap-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+                    <Sparkles className={`h-5 w-5 shrink-0 text-emerald-700 ${isAnalyzing ? "animate-spin" : ""}`} />
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-emerald-950">AI evidence review is queued</h4>
+                      <p className="text-[11px] text-slate-600">Crop damage, weather patterns and claim consistency will be checked.</p>
                     </div>
+                    <button
+                      type="button"
+                      disabled={isAnalyzing}
+                      onClick={() => triggerAIEngine(claimDetails.claim.id)}
+                      className="rounded-lg bg-emerald-700 px-3 py-2 text-[10px] font-extrabold text-white transition hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {isAnalyzing ? "Checking…" : "Run review now"}
+                    </button>
                   </div>
                 )}
               </div>
@@ -685,6 +1108,56 @@ export default function FarmerDashboard({
                   </div>
                 ) : null;
               })()}
+
+              {claimDetails.claim.supplementalEvidence?.map((submission: any, submissionIndex: number) => {
+                const supplementalImages = Array.isArray(submission.imageUrls) ? submission.imageUrls : [];
+                return (
+                  <div key={submission.id || submissionIndex} className="rounded-2xl border-2 border-violet-200 bg-violet-50/35 p-6 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-violet-100 pb-3">
+                      <div>
+                        <p className="flex items-center gap-2 text-sm font-extrabold text-violet-950">
+                          <RotateCcw className="h-4 w-4 text-violet-700" />
+                          Your re-claim evidence · Round {submissionIndex + 1}
+                        </p>
+                        <p className="mt-1 text-[10px] text-violet-600">Kept separate from your original claim evidence</p>
+                      </div>
+                      <time dateTime={submission.submittedAt} className="rounded-lg bg-white px-2.5 py-1.5 text-[9px] font-bold text-violet-700 ring-1 ring-violet-100">
+                        {new Date(submission.submittedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                      </time>
+                    </div>
+                    {submission.description && (
+                      <div className="mt-4">
+                        <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-violet-600">Additional message</p>
+                        <p className="mt-1 rounded-xl border border-violet-100 bg-white p-3 text-xs leading-5 text-slate-700">
+                          &ldquo;{submission.description}&rdquo;
+                        </p>
+                      </div>
+                    )}
+                    <div className="mt-4">
+                      <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-violet-600">New photos ({supplementalImages.length})</p>
+                      {supplementalImages.length > 0 ? (
+                        <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                          {supplementalImages.map((image: string, imageIndex: number) => (
+                            <button
+                              key={imageIndex}
+                              type="button"
+                              onClick={() => setLightboxImg(image)}
+                              className="group relative aspect-square overflow-hidden rounded-xl border border-violet-200 bg-white"
+                            >
+                              <img src={image} alt={`Re-claim evidence ${imageIndex + 1}`} className="h-full w-full object-cover transition group-hover:scale-105" />
+                              <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                                <ZoomIn className="h-5 w-5" />
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 rounded-xl border border-dashed border-violet-200 bg-white/70 p-3 text-[10px] text-violet-600">No new photos were attached to this response.</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
 
               {/* AI Result & Weather Audit overlay if processed */}
               {claimDetails.aiResult && (
@@ -757,10 +1230,10 @@ export default function FarmerDashboard({
               {/* Interactive Timeline & Ledger proof */}
               <TimelineComponent
                 claim={claimDetails.claim}
-                weatherChecked={!!claimDetails.weatherVerification}
-                hasAiResult={!!claimDetails.aiResult}
-                hasDecision={claimDetails.decisions?.length > 0}
-                lastDecision={claimDetails.decisions?.[claimDetails.decisions.length - 1]}
+                aiResult={claimDetails.aiResult}
+                weatherVerification={claimDetails.weatherVerification}
+                decisions={claimDetails.decisions}
+                appeal={claimDetails.appeal}
               />
 
               {/* Map GPS visualizer */}
@@ -933,6 +1406,7 @@ export default function FarmerDashboard({
             </div>
           )}
         </div>
+      </div>
       </div>
     </>
   );

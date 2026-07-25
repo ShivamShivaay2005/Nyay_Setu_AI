@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { 
   Layers, Shield, Cpu, RefreshCw, Key, Database, Search, ArrowRight,
-  TrendingUp, CheckCircle, AlertTriangle, CloudRain, Coins
+  TrendingUp, CheckCircle, AlertTriangle, CloudRain, Coins, ExternalLink
 } from "lucide-react";
 import { BlockchainBlock } from "../types";
 
@@ -148,6 +148,11 @@ export default function AdminDashboard({
                           }`}>
                             {block.status}
                           </span>
+                          {block.network && (
+                            <span className="rounded-full border border-indigo-100 bg-indigo-50 px-1.5 py-0.5 text-[8px] font-extrabold uppercase text-indigo-700">
+                              {block.simulated ? "Simulator" : "Sepolia"}
+                            </span>
+                          )}
                         </div>
                         <p className="text-[10px] text-slate-400 font-mono truncate mt-1">
                           Hash: {block.currentHash}
@@ -156,7 +161,9 @@ export default function AdminDashboard({
                     </div>
 
                     <div className="text-right shrink-0">
-                      <p className="text-[10px] font-mono text-slate-500">Nonce: {block.nonce}</p>
+                      <p className="text-[10px] font-mono text-slate-500">
+                        {block.simulated === false ? `Sepolia block #${block.blockNumber}` : `Nonce: ${block.nonce}`}
+                      </p>
                       <p className="text-[9px] text-slate-400 mt-1">{new Date(block.timestamp).toLocaleString()}</p>
                     </div>
                   </div>
@@ -185,8 +192,10 @@ export default function AdminDashboard({
                 </div>
 
                 <div>
-                  <span className="text-[9px] text-slate-400 uppercase block">Mining Nonce (Proof-of-work)</span>
-                  <p className="text-slate-700">{selectedBlock.nonce} iterations</p>
+                  <span className="text-[9px] text-slate-400 uppercase block">Ledger Network</span>
+                  <p className="text-slate-700">
+                    {selectedBlock.simulated === false ? "Ethereum Sepolia" : "Local proof-of-work simulator"}
+                  </p>
                 </div>
 
                 <div>
@@ -212,9 +221,21 @@ export default function AdminDashboard({
 
                 <div>
                   <span className="text-[9px] text-blue-600 uppercase block font-bold">Current Block Hash</span>
-                  <p className="text-blue-700 break-all bg-blue-50/50 p-1.5 rounded border border-blue-200/50 mt-0.5 text-[10px] font-semibold">
-                    {selectedBlock.currentHash}
-                  </p>
+                  {selectedBlock.explorerUrl ? (
+                    <a
+                      href={selectedBlock.explorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-0.5 flex items-start gap-1 rounded border border-blue-200/50 bg-blue-50/50 p-1.5 text-[10px] font-semibold text-blue-700 hover:underline"
+                    >
+                      <span className="break-all">{selectedBlock.currentHash}</span>
+                      <ExternalLink className="mt-0.5 h-3 w-3 shrink-0" />
+                    </a>
+                  ) : (
+                    <p className="text-blue-700 break-all bg-blue-50/50 p-1.5 rounded border border-blue-200/50 mt-0.5 text-[10px] font-semibold">
+                      {selectedBlock.currentHash}
+                    </p>
+                  )}
                 </div>
               </div>
 

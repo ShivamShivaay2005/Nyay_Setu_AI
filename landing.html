@@ -1,256 +1,437 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Nyay Setu AI – Crop Insurance Claim Verification</title>
-<meta name="description" content="AI-powered transparent crop insurance claim verification platform using Blockchain and AI for farmers and officers."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="landing.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nyay Setu AI — Fair Crop Claims, Clear Evidence</title>
+  <meta name="description" content="A farmer-first crop claim verification platform with AI-assisted damage review, weather cross-checks, officer decisions, and a transparent audit trail." />
+  <meta name="theme-color" content="#07150e" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Nyay Setu AI — Fair Crop Claims, Clear Evidence" />
+  <meta property="og:description" content="Farmer-first crop claim evidence, weather verification, officer review, and a transparent decision trail." />
+  <meta property="og:image" content="/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Nyay Setu AI — Fair Crop Claims, Clear Evidence" />
+  <meta name="twitter:description" content="Farmer-first crop claim evidence, weather verification, officer review, and a transparent decision trail." />
+  <meta name="twitter:image" content="/og.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./landing.css" />
+  <script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 
-<!-- NAVBAR -->
-<nav class="navbar" id="navbar">
-  <div class="container nav-inner">
-    <a href="#" class="logo">
-      <span class="logo-icon">🌾</span>
-      <span>Nyay Setu <span class="accent">AI</span></span>
-    </a>
-    <button class="hamburger" id="hamburger" aria-label="Toggle menu">☰</button>
-    <ul class="nav-links" id="navLinks">
-      <li><a href="#home">Home</a></li>
-      <li><a href="#features">Features</a></li>
-      <li><a href="#workflow">Workflow</a></li>
-      <li><a href="#about">About</a></li>
-      <li><a href="#contact">Contact</a></li>
-    </ul>
-    <div class="nav-btns">
-      <a href="login.html" class="btn-outline">Login</a>
-      <a href="login.html" class="btn-primary">Get Started</a>
+  <aside class="deadline-bar" aria-label="Crop claim deadline">
+    <div class="container deadline-inner">
+      <p>
+        <span class="deadline-pulse" aria-hidden="true"></span>
+        <strong data-i18n="deadlineLabel">Crop loss alert</strong>
+        <span data-i18n="deadlineText">Localized and post-harvest losses should be reported within 72 hours.</span>
+      </p>
+      <button class="text-action" type="button" data-open-claim>
+        <span data-i18n="trackNow">Track a claim</span>
+        <span aria-hidden="true">↗</span>
+      </button>
     </div>
-  </div>
-</nav>
+  </aside>
 
-<!-- HERO -->
-<section class="hero" id="home">
-  <div class="blob blob1"></div>
-  <div class="blob blob2"></div>
-  <div class="blob blob3"></div>
-  <div class="container hero-inner">
-    <div class="hero-text reveal">
-      <div class="badge">🚀 Powered by AI + Blockchain</div>
-      <h1>AI-Powered Transparent Crop Insurance Claim Verification</h1>
-      <p class="hero-sub">Empowering farmers with faster, fair, and transparent crop insurance claim verification using Artificial Intelligence and Blockchain technology.</p>
-      <div class="hero-btns">
-        <a href="login.html" class="btn-primary big">Submit Claim</a>
-        <a href="#features" class="btn-outline big">Learn More →</a>
+  <header class="site-header" id="siteHeader">
+    <nav class="container nav-shell" aria-label="Primary navigation">
+      <a class="brand" href="#home" aria-label="Nyay Setu AI home">
+        <span class="brand-mark" aria-hidden="true">🌾</span>
+        <span class="brand-copy">
+          <strong>Nyay Setu</strong>
+          <small>AI crop claims</small>
+        </span>
+      </a>
+
+      <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="navMenu">
+        <span class="menu-line"></span>
+        <span class="menu-line"></span>
+        <span class="sr-only">Toggle navigation</span>
+      </button>
+
+      <div class="nav-menu" id="navMenu">
+        <a href="#why" data-i18n="navWhy">Why Nyay Setu</a>
+        <a href="#coverage" data-i18n="navCoverage">Coverage guide</a>
+        <a href="#journey" data-i18n="navJourney">Claim journey</a>
+        <a href="#faq" data-i18n="navFaq">FAQs</a>
       </div>
-      <div class="hero-stats">
-        <div><strong>1000+</strong><span>Claims</span></div>
-        <div><strong>90%</strong><span>Faster</span></div>
-        <div><strong>100%</strong><span>Secure</span></div>
+
+      <div class="nav-actions">
+        <label class="language-control">
+          <span class="sr-only">Choose language</span>
+          <select id="languageSelect" aria-label="Choose language">
+            <option value="en">EN</option>
+            <option value="hi">हिं</option>
+          </select>
+        </label>
+        <button class="button button-ghost nav-track" type="button" data-open-claim data-i18n="trackClaim">Track claim</button>
+        <a class="button button-primary nav-login" href="login.html" data-i18n="login">Login</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <section class="hero" id="home">
+      <div class="hero-orbit orbit-one" aria-hidden="true"></div>
+      <div class="hero-orbit orbit-two" aria-hidden="true"></div>
+      <div class="container hero-grid">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">
+            <span aria-hidden="true">✦</span>
+            <span data-i18n="heroEyebrow">Farmer-first evidence platform</span>
+          </p>
+          <h1 data-i18n-html="heroTitle">From damaged field to <span>fair decision.</span></h1>
+          <p class="hero-lead" data-i18n="heroLead">
+            File crop damage evidence once. Nyay Setu AI connects photos, weather records, officer review, and a tamper-evident audit trail—so every decision is easier to understand.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary button-large" href="login.html?role=farmer">
+              <span data-i18n="fileClaim">File farmer claim</span>
+              <span aria-hidden="true">→</span>
+            </a>
+            <button class="button button-ghost button-large" type="button" data-open-claim>
+              <span data-i18n="checkStatus">Check claim status</span>
+            </button>
+          </div>
+          <ul class="hero-signals" aria-label="Platform highlights">
+            <li><span aria-hidden="true">✓</span><span data-i18n="signalOne">AI-assisted, officer-decided</span></li>
+            <li><span aria-hidden="true">✓</span><span data-i18n="signalTwo">Weather evidence cross-check</span></li>
+            <li><span aria-hidden="true">✓</span><span data-i18n="signalThree">Appeal-ready decision history</span></li>
+          </ul>
+        </div>
+
+        <div class="farm-visual reveal" aria-label="Farmer standing in a healthy crop field with claim evidence indicators">
+          <div class="farm-frame">
+            <img
+              src="./landing_farmer_realistic.png"
+              alt="Indian farmer counting crop-insurance benefit money in a green paddy field while other farmers work nearby"
+              class="farm-image"
+              width="1680"
+              height="945"
+              fetchpriority="high"
+              decoding="async"
+            />
+            <div class="farm-shade" aria-hidden="true"></div>
+            <div class="visual-kicker">
+              <span class="live-dot" aria-hidden="true"></span>
+              <span data-i18n="fieldPulse">Field evidence pulse</span>
+            </div>
+            <div class="evidence-chip evidence-chip-weather">
+              <span aria-hidden="true">☁</span>
+              <span><small data-i18n="weatherMatch">Weather match</small><strong>Verified</strong></span>
+            </div>
+            <div class="evidence-chip evidence-chip-ai">
+              <span aria-hidden="true">✦</span>
+              <span><small data-i18n="aiReview">AI review</small><strong>Evidence ready</strong></span>
+            </div>
+            <div class="farm-caption">
+              <p data-i18n="visualCaption">One claim. Every signal in context.</p>
+              <div class="crop-switcher" role="group" aria-label="Explore crop examples">
+                <button type="button" class="crop-button is-active" data-crop="paddy" aria-pressed="true">Paddy</button>
+                <button type="button" class="crop-button" data-crop="wheat" aria-pressed="false">Wheat</button>
+                <button type="button" class="crop-button" data-crop="cotton" aria-pressed="false">Cotton</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="crop-readout" id="cropReadout" aria-live="polite">
+            <div>
+              <span class="readout-label" data-i18n="cropExample">Crop example</span>
+              <strong id="cropName">Rice (Paddy)</strong>
+            </div>
+            <div>
+              <span class="readout-label" data-i18n="season">Season</span>
+              <strong id="cropSeason">Kharif</strong>
+            </div>
+            <div>
+              <span class="readout-label" data-i18n="commonRisk">Common risk</span>
+              <strong id="cropRisk">Flood / drought</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ledger-strip" aria-labelledby="ledgerHeading">
+      <div class="container">
+        <div class="ledger-heading reveal">
+          <div>
+            <p class="mini-label" id="ledgerHeading" data-i18n="liveLedger">Live prototype ledger</p>
+            <p class="ledger-note" id="statsStatus" data-i18n="ledgerLoading">Loading verified platform activity…</p>
+          </div>
+          <span class="prototype-badge" data-i18n="prototypeBadge">Demo environment</span>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card reveal">
+            <span class="stat-index">01</span>
+            <strong class="stat-value" data-stat="totalClaims">—</strong>
+            <p data-i18n="statClaims">Claims in ledger</p>
+          </article>
+          <article class="stat-card reveal">
+            <span class="stat-index">02</span>
+            <strong class="stat-value" data-stat="approvedClaims">—</strong>
+            <p data-i18n="statApproved">Officer approved</p>
+          </article>
+          <article class="stat-card reveal">
+            <span class="stat-index">03</span>
+            <strong class="stat-value" data-stat="weatherVerifiedPercentage">—</strong>
+            <p data-i18n="statWeather">Weather verified</p>
+          </article>
+          <article class="stat-card reveal">
+            <span class="stat-index">04</span>
+            <strong class="stat-value" data-stat="totalSecuredBlocks">—</strong>
+            <p data-i18n="statBlocks">Audit blocks secured</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section why-section" id="why">
+      <div class="container">
+        <div class="section-heading reveal">
+          <div>
+            <p class="eyebrow"><span aria-hidden="true">✦</span><span data-i18n="whyEyebrow">Evidence before assumptions</span></p>
+            <h2 data-i18n="whyTitle">A clearer claim for every side.</h2>
+          </div>
+          <p data-i18n="whyLead">Built to help farmers submit stronger evidence and help officers review it without losing the human decision.</p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card reveal">
+            <span class="feature-number">01</span>
+            <div class="feature-icon" aria-hidden="true">📷</div>
+            <h3 data-i18n="featureOneTitle">Guided field evidence</h3>
+            <p data-i18n="featureOneText">Location, crop details, damage type, and photos stay connected in one claim record.</p>
+            <span class="feature-tag">Farmer input</span>
+          </article>
+          <article class="feature-card reveal">
+            <span class="feature-number">02</span>
+            <div class="feature-icon" aria-hidden="true">🌦</div>
+            <h3 data-i18n="featureTwoTitle">AI + weather context</h3>
+            <p data-i18n="featureTwoText">Damage analysis and weather telemetry help surface inconsistencies for officer review.</p>
+            <span class="feature-tag">Evidence assist</span>
+          </article>
+          <article class="feature-card reveal">
+            <span class="feature-number">03</span>
+            <div class="feature-icon" aria-hidden="true">⚖</div>
+            <h3 data-i18n="featureThreeTitle">Explainable decisions</h3>
+            <p data-i18n="featureThreeText">Approvals, rejections, reasons, and appeals remain visible across the claim timeline.</p>
+            <span class="feature-tag">Human decision</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section coverage-section" id="coverage">
+      <div class="container coverage-layout">
+        <div class="coverage-copy reveal">
+          <p class="eyebrow"><span aria-hidden="true">✦</span><span data-i18n="coverageEyebrow">Know before you file</span></p>
+          <h2 data-i18n="coverageTitle">Crop cover, explained without the paperwork maze.</h2>
+          <p data-i18n="coverageLead">Use this quick guide to understand common PMFBY crop groups, insured risks, and the first steps after crop loss. Final eligibility depends on your notified crop, area, and policy.</p>
+          <div class="deadline-card">
+            <span class="deadline-number">72</span>
+            <div>
+              <strong data-i18n="hoursTitle">hours can matter</strong>
+              <p data-i18n="hoursText">For localized calamity and post-harvest loss, notify the insurer or relevant authority quickly—typically within 72 hours.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="coverage-explorer reveal">
+          <div class="tab-list" role="tablist" aria-label="Crop insurance guide">
+            <button type="button" role="tab" id="tab-crops" aria-controls="panel-crops" aria-selected="true" class="guide-tab is-active" data-tab="crops" data-i18n="tabCrops">Crops</button>
+            <button type="button" role="tab" id="tab-risks" aria-controls="panel-risks" aria-selected="false" class="guide-tab" data-tab="risks" data-i18n="tabRisks">Risks</button>
+            <button type="button" role="tab" id="tab-steps" aria-controls="panel-steps" aria-selected="false" class="guide-tab" data-tab="steps" data-i18n="tabSteps">First steps</button>
+          </div>
+
+          <div class="guide-panel" id="panel-crops" role="tabpanel" aria-labelledby="tab-crops" data-panel="crops">
+            <p class="panel-intro" data-i18n="cropsIntro">Common notified crop groups under PMFBY:</p>
+            <div class="crop-chip-grid">
+              <span>🌾 Cereals</span>
+              <span>🌿 Millets</span>
+              <span>🫛 Pulses</span>
+              <span>🌻 Oilseeds</span>
+              <span>🍅 Horticulture</span>
+              <span>🧺 Commercial crops</span>
+            </div>
+            <p class="panel-footnote" data-i18n="cropsNote">Coverage varies by state, season, notified area, and crop.</p>
+          </div>
+
+          <div class="guide-panel" id="panel-risks" role="tabpanel" aria-labelledby="tab-risks" data-panel="risks" hidden>
+            <p class="panel-intro" data-i18n="risksIntro">Common insured events may include:</p>
+            <ul class="risk-list">
+              <li><span aria-hidden="true">☀</span><span><strong>Drought / dry spell</strong><small>Standing crop and mid-season impact</small></span></li>
+              <li><span aria-hidden="true">≋</span><span><strong>Flood / inundation</strong><small>Widespread or localized damage</small></span></li>
+              <li><span aria-hidden="true">◌</span><span><strong>Hailstorm / cyclone</strong><small>Weather-led crop loss</small></span></li>
+              <li><span aria-hidden="true">⌁</span><span><strong>Pest / disease</strong><small>Non-preventable notified risk</small></span></li>
+            </ul>
+          </div>
+
+          <div class="guide-panel" id="panel-steps" role="tabpanel" aria-labelledby="tab-steps" data-panel="steps" hidden>
+            <ol class="first-steps">
+              <li><span>1</span><div><strong data-i18n="stepOneTitle">Make the loss safe to document</strong><p data-i18n="stepOneText">Capture clear photos without putting yourself at risk.</p></div></li>
+              <li><span>2</span><div><strong data-i18n="stepTwoTitle">Record place and time</strong><p data-i18n="stepTwoText">Keep location, crop, date, and damage type ready.</p></div></li>
+              <li><span>3</span><div><strong data-i18n="stepThreeTitle">Intimate quickly</strong><p data-i18n="stepThreeText">Use the official channel linked to your policy or local authority.</p></div></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section journey-section" id="journey">
+      <div class="container">
+        <div class="section-heading reveal">
+          <div>
+            <p class="eyebrow"><span aria-hidden="true">✦</span><span data-i18n="journeyEyebrow">One connected timeline</span></p>
+            <h2 data-i18n="journeyTitle">See where the claim is—and why.</h2>
+          </div>
+          <p data-i18n="journeyLead">Every checkpoint adds evidence or a human decision, keeping the farmer informed from upload to appeal.</p>
+        </div>
+
+        <ol class="journey-track">
+          <li class="journey-step reveal">
+            <span class="journey-number">01</span><span class="journey-icon" aria-hidden="true">↥</span>
+            <h3 data-i18n="journeyOne">Claim filed</h3><p data-i18n="journeyOneText">Photos, crop, loss, and location submitted.</p>
+          </li>
+          <li class="journey-step reveal">
+            <span class="journey-number">02</span><span class="journey-icon" aria-hidden="true">✦</span>
+            <h3 data-i18n="journeyTwo">AI evidence review</h3><p data-i18n="journeyTwoText">Image signals and confidence summarized.</p>
+          </li>
+          <li class="journey-step reveal">
+            <span class="journey-number">03</span><span class="journey-icon" aria-hidden="true">☁</span>
+            <h3 data-i18n="journeyThree">Weather checked</h3><p data-i18n="journeyThreeText">Conditions compared with the reported loss.</p>
+          </li>
+          <li class="journey-step reveal">
+            <span class="journey-number">04</span><span class="journey-icon" aria-hidden="true">⚖</span>
+            <h3 data-i18n="journeyFour">Officer decides</h3><p data-i18n="journeyFourText">Evidence reviewed with written reasoning.</p>
+          </li>
+          <li class="journey-step reveal">
+            <span class="journey-number">05</span><span class="journey-icon" aria-hidden="true">◇</span>
+            <h3 data-i18n="journeyFive">Audit secured</h3><p data-i18n="journeyFiveText">Decision proof enters the prototype ledger.</p>
+          </li>
+          <li class="journey-step reveal">
+            <span class="journey-number">06</span><span class="journey-icon" aria-hidden="true">↺</span>
+            <h3 data-i18n="journeySix">Appeal available</h3><p data-i18n="journeySixText">Farmer can challenge with additional evidence.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section portal-section" id="portals">
+      <div class="container portal-grid">
+        <article class="portal-card farmer-portal reveal">
+          <span class="portal-kicker" data-i18n="forFarmers">For farmers</span>
+          <div class="portal-icon" aria-hidden="true">👨🏽‍🌾</div>
+          <h2 data-i18n="farmerPortalTitle">Your field story, submitted clearly.</h2>
+          <p data-i18n="farmerPortalText">File evidence, follow each verification stage, read the officer’s reason, and appeal when needed.</p>
+          <a class="button button-dark" href="login.html?role=farmer"><span data-i18n="enterFarmer">Enter farmer portal</span><span aria-hidden="true">→</span></a>
+        </article>
+        <article class="portal-card officer-portal reveal">
+          <span class="portal-kicker" data-i18n="forOfficers">For officers</span>
+          <div class="portal-icon" aria-hidden="true">🏛</div>
+          <h2 data-i18n="officerPortalTitle">Evidence organized for accountable review.</h2>
+          <p data-i18n="officerPortalText">Prioritize claim queues, compare AI and weather evidence, record a reasoned decision, and review appeals.</p>
+          <a class="button button-light" href="login.html?role=officer"><span data-i18n="enterOfficer">Enter officer portal</span><span aria-hidden="true">→</span></a>
+        </article>
+      </div>
+    </section>
+
+    <section class="section faq-section" id="faq">
+      <div class="container faq-layout">
+        <div class="faq-heading reveal">
+          <p class="eyebrow"><span aria-hidden="true">✦</span><span data-i18n="faqEyebrow">Frequently asked</span></p>
+          <h2 data-i18n="faqTitle">Quick answers before you begin.</h2>
+          <p data-i18n="faqLead">Nyay Setu is a decision-support prototype. Official coverage, timelines, and settlement remain governed by your insurer and scheme rules.</p>
+          <button class="button button-ghost" type="button" data-open-claim data-i18n="trackExisting">Track an existing claim</button>
+        </div>
+
+        <div class="accordion reveal">
+          <article class="faq-item">
+            <h3><button type="button" aria-expanded="true" aria-controls="faq-answer-1"><span data-i18n="faqOneQ">Does AI approve or reject my claim?</span><span class="faq-plus" aria-hidden="true"></span></button></h3>
+            <div class="faq-answer" id="faq-answer-1"><p data-i18n="faqOneA">No. AI organizes image and evidence signals. An authorized officer makes and records the final decision.</p></div>
+          </article>
+          <article class="faq-item">
+            <h3><button type="button" aria-expanded="false" aria-controls="faq-answer-2"><span data-i18n="faqTwoQ">What should I prepare before filing?</span><span class="faq-plus" aria-hidden="true"></span></button></h3>
+            <div class="faq-answer" id="faq-answer-2" hidden><p data-i18n="faqTwoA">Keep crop and damage details, location, incident date, clear field photos, and the policy or enrolment reference available.</p></div>
+          </article>
+          <article class="faq-item">
+            <h3><button type="button" aria-expanded="false" aria-controls="faq-answer-3"><span data-i18n="faqThreeQ">Can I appeal a rejection?</span><span class="faq-plus" aria-hidden="true"></span></button></h3>
+            <div class="faq-answer" id="faq-answer-3" hidden><p data-i18n="faqThreeA">Yes. The farmer portal keeps the decision reason visible and allows an appeal with a written reason and additional evidence.</p></div>
+          </article>
+          <article class="faq-item">
+            <h3><button type="button" aria-expanded="false" aria-controls="faq-answer-4"><span data-i18n="faqFourQ">Is the audit trail on a public blockchain?</span><span class="faq-plus" aria-hidden="true"></span></button></h3>
+            <div class="faq-answer" id="faq-answer-4" hidden><p data-i18n="faqFourA">The current repository demonstrates a local proof-of-work ledger. It is a prototype audit trail, not a live public-chain settlement system.</p></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="final-cta">
+      <div class="container final-cta-inner reveal">
+        <div>
+          <p class="mini-label" data-i18n="ctaEyebrow">Field to decision, connected</p>
+          <h2 data-i18n="ctaTitle">Give your crop claim a clearer path.</h2>
+        </div>
+        <div class="final-cta-actions">
+          <a class="button button-dark button-large" href="login.html?role=farmer"><span data-i18n="startClaim">Start a claim</span><span aria-hidden="true">→</span></a>
+          <button class="button button-yellow-outline button-large" type="button" data-open-claim data-i18n="trackClaim">Track claim</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" id="contact">
+    <div class="container footer-grid">
+      <div>
+        <a class="brand footer-brand" href="#home">
+          <span class="brand-mark" aria-hidden="true">🌾</span>
+          <span class="brand-copy"><strong>Nyay Setu</strong><small>AI crop claims</small></span>
+        </a>
+        <p data-i18n="footerText">A farmer-first prototype for transparent crop claim evidence and review.</p>
+      </div>
+      <div class="footer-links">
+        <strong data-i18n="explore">Explore</strong>
+        <a href="#why" data-i18n="navWhy">Why Nyay Setu</a>
+        <a href="#coverage" data-i18n="navCoverage">Coverage guide</a>
+        <a href="#journey" data-i18n="navJourney">Claim journey</a>
+      </div>
+      <div class="footer-links">
+        <strong data-i18n="access">Access</strong>
+        <a href="login.html?role=farmer" data-i18n="farmerLogin">Farmer login</a>
+        <a href="login.html?role=officer" data-i18n="officerLogin">Officer login</a>
+        <button type="button" data-open-claim data-i18n="trackClaim">Track claim</button>
       </div>
     </div>
-    <div class="hero-visual reveal">
-      <div class="flow-diagram">
-        <div class="flow-node">👨‍🌾 Farmer</div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-node ai">🤖 AI Analysis</div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-node">👮 Officer Review</div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-node chain">⛓️ Blockchain</div>
-      </div>
-      <div class="glass-cards">
-        <div class="glass-card float1">✅ AI Verified</div>
-        <div class="glass-card float2">🌦️ Weather Matched</div>
-        <div class="glass-card float3">🔒 Blockchain Secured</div>
-      </div>
+    <div class="container footer-bottom">
+      <p>© <span id="year"></span> Nyay Setu AI. <span data-i18n="prototypeFooter">Prototype for transparent agricultural claims.</span></p>
+      <a href="#home"><span data-i18n="backTop">Back to top</span> ↑</a>
     </div>
-  </div>
-</section>
+  </footer>
 
-<!-- STATS -->
-<section class="stats-section" id="stats">
-  <div class="container">
-    <div class="stats-grid">
-      <div class="stat-card reveal"><div class="stat-icon">🌾</div><div class="stat-num" data-target="1000" data-suffix="+">0</div><div class="stat-label">Claims Processed</div></div>
-      <div class="stat-card reveal"><div class="stat-icon">⚡</div><div class="stat-num" data-target="90" data-suffix="%">0</div><div class="stat-label">Faster Verification</div></div>
-      <div class="stat-card reveal"><div class="stat-icon">🔒</div><div class="stat-num" data-target="100" data-suffix="%">0</div><div class="stat-label">Tamper-Proof Records</div></div>
-      <div class="stat-card reveal"><div class="stat-icon">🤖</div><div class="stat-num" data-target="500" data-suffix="+">0</div><div class="stat-label">AI Assisted Decisions</div></div>
+  <dialog class="claim-dialog" id="claimDialog" aria-labelledby="claimDialogTitle">
+    <div class="dialog-shell">
+      <button class="dialog-close" type="button" data-close-dialog aria-label="Close claim tracker">×</button>
+      <p class="mini-label" data-i18n="trackerEyebrow">Claim tracker</p>
+      <h2 id="claimDialogTitle" data-i18n="trackerTitle">Find your claim in the ledger.</h2>
+      <p class="dialog-intro" data-i18n="trackerText">Enter the full claim ID from your submission receipt.</p>
+      <form id="claimLookupForm">
+        <label for="claimId" data-i18n="claimIdLabel">Claim ID</label>
+        <div class="claim-input-row">
+          <input id="claimId" name="claimId" type="text" autocomplete="off" placeholder="claim-1784896065027" required />
+          <button class="button button-primary" type="submit" data-i18n="findClaim">Find claim</button>
+        </div>
+      </form>
+      <button class="sample-link" type="button" id="sampleClaimButton" data-i18n="trySample">Use a demo claim</button>
+      <div class="claim-result" id="claimResult" role="status" aria-live="polite" hidden></div>
+      <p class="dialog-note" data-i18n="trackerNote">Status shown here is from this prototype ledger and is not an insurer settlement confirmation.</p>
     </div>
-  </div>
-</section>
+  </dialog>
 
-<!-- FEATURES -->
-<section class="features-section" id="features">
-  <div class="container">
-    <div class="section-head reveal">
-      <div class="section-badge">Features</div>
-      <h2>Everything You Need for Smart Claim Verification</h2>
-      <p>A complete ecosystem for farmers, officers, and administrators.</p>
-    </div>
-    <div class="features-grid">
-      <div class="feature-card reveal"><div class="feat-icon">🔍</div><h3>AI Crop Damage Detection</h3><p>Analyze uploaded crop images using advanced AI models for accurate damage assessment.</p></div>
-      <div class="feature-card reveal"><div class="feat-icon">🌦️</div><h3>Weather Verification</h3><p>Cross-check weather conditions with claim location and date using real-time APIs.</p></div>
-      <div class="feature-card reveal"><div class="feat-icon">🚨</div><h3>Fraud Detection</h3><p>Detect duplicate or suspicious claims using pattern recognition and AI analysis.</p></div>
-      <div class="feature-card reveal"><div class="feat-icon">⛓️</div><h3>Blockchain Transparency</h3><p>Immutable record of every decision stored on Ethereum Sepolia blockchain.</p></div>
-      <div class="feature-card reveal"><div class="feat-icon">🖥️</div><h3>Officer Dashboard</h3><p>Centralized review and approval system with AI-generated evidence reports.</p></div>
-      <div class="feature-card reveal"><div class="feat-icon">📱</div><h3>Farmer Claim Tracking</h3><p>Real-time claim status updates with full transparency at every stage.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- WORKFLOW -->
-<section class="workflow-section" id="workflow">
-  <div class="container">
-    <div class="section-head reveal">
-      <div class="section-badge">Workflow</div>
-      <h2>How Nyay Setu AI Works</h2>
-      <p>A seamless 6-step process from claim submission to final decision.</p>
-    </div>
-    <div class="workflow-grid">
-      <div class="workflow-card reveal"><div class="wf-num">01</div><div class="wf-icon">📤</div><h3>Farmer Uploads Claim</h3><p>Farmer submits claim with photos and details through the portal.</p></div>
-      <div class="workflow-card reveal"><div class="wf-num">02</div><div class="wf-icon">🤖</div><h3>AI Analyzes Damage</h3><p>Gemini AI processes images and generates a damage assessment report.</p></div>
-      <div class="workflow-card reveal"><div class="wf-num">03</div><div class="wf-icon">🌦️</div><h3>Weather & Fraud Check</h3><p>OpenWeather API cross-checks conditions; fraud patterns are flagged.</p></div>
-      <div class="workflow-card reveal"><div class="wf-num">04</div><div class="wf-icon">👮</div><h3>Officer Reviews</h3><p>Government officer reviews AI evidence and makes an informed decision.</p></div>
-      <div class="workflow-card reveal"><div class="wf-num">05</div><div class="wf-icon">⛓️</div><h3>Blockchain Records</h3><p>Decision is recorded immutably on Ethereum Sepolia via smart contract.</p></div>
-      <div class="workflow-card reveal"><div class="wf-num">06</div><div class="wf-icon">✅</div><h3>Farmer Gets Status</h3><p>Farmer receives final decision with full audit trail and reasoning.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- PORTALS -->
-<section class="portals-section" id="about">
-  <div class="container">
-    <div class="section-head reveal">
-      <div class="section-badge">Portals</div>
-      <h2>Designed for Farmers &amp; Officers</h2>
-      <p>Dedicated portals tailored to each stakeholder's needs.</p>
-    </div>
-    <div class="portals-grid">
-      <div class="portal-card farmer reveal">
-        <div class="portal-icon">👨‍🌾</div>
-        <h3>Farmer Portal</h3>
-        <p>Empower farmers with a simple, guided claim experience.</p>
-        <ul>
-          <li>✅ Submit Claim</li>
-          <li>📷 Upload Photos</li>
-          <li>📊 Track Status</li>
-          <li>⚖️ Appeal Decision</li>
-        </ul>
-        <a href="login.html" class="btn-primary">Access Farmer Portal</a>
-      </div>
-      <div class="portal-card officer reveal">
-        <div class="portal-icon">🏛️</div>
-        <h3>Officer Portal</h3>
-        <p>Powerful tools for efficient, transparent claim processing.</p>
-        <ul>
-          <li>📋 Review Claims</li>
-          <li>🤖 View AI Report</li>
-          <li>✅ Approve / Reject</li>
-          <li>⛓️ Audit Blockchain Records</li>
-        </ul>
-        <a href="login.html?role=officer" class="btn-teal">Access Officer Portal</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- TECH STACK -->
-<section class="tech-section">
-  <div class="container">
-    <div class="section-head reveal">
-      <div class="section-badge">Technology</div>
-      <h2>Built with Modern Technologies</h2>
-      <p>Enterprise-grade stack ensuring performance, security, and scalability.</p>
-    </div>
-    <div class="tech-grid">
-      <div class="tech-group reveal"><h4>Frontend</h4><div class="tech-badges"><span class="tech-badge">Next.js</span><span class="tech-badge">Tailwind CSS</span></div></div>
-      <div class="tech-group reveal"><h4>Backend</h4><div class="tech-badges"><span class="tech-badge">FastAPI</span></div></div>
-      <div class="tech-group reveal"><h4>Database</h4><div class="tech-badges"><span class="tech-badge">Supabase</span></div></div>
-      <div class="tech-group reveal"><h4>AI</h4><div class="tech-badges"><span class="tech-badge ai">Google Gemini</span></div></div>
-      <div class="tech-group reveal"><h4>Blockchain</h4><div class="tech-badges"><span class="tech-badge chain">Ethereum Sepolia</span><span class="tech-badge chain">Solidity</span><span class="tech-badge chain">Ethers.js</span></div></div>
-      <div class="tech-group reveal"><h4>Storage</h4><div class="tech-badges"><span class="tech-badge">IPFS (Pinata)</span></div></div>
-      <div class="tech-group reveal"><h4>Weather</h4><div class="tech-badges"><span class="tech-badge weather">OpenWeather API</span></div></div>
-    </div>
-  </div>
-</section>
-
-<!-- BENEFITS -->
-<section class="benefits-section">
-  <div class="container">
-    <div class="section-head reveal">
-      <div class="section-badge">Benefits</div>
-      <h2>Why Choose Nyay Setu AI?</h2>
-      <p>Transforming agriculture insurance with cutting-edge technology.</p>
-    </div>
-    <div class="benefits-grid">
-      <div class="benefit-card reveal">
-        <div class="benefit-icon">🌱</div>
-        <h3>Faster Claim Processing</h3>
-        <p>Reduce claim processing time by 90% with AI-powered automation and intelligent routing.</p>
-      </div>
-      <div class="benefit-card reveal">
-        <div class="benefit-icon">🔒</div>
-        <h3>Transparent &amp; Secure</h3>
-        <p>Every decision is recorded on blockchain — immutable, auditable, and tamper-proof forever.</p>
-      </div>
-      <div class="benefit-card reveal">
-        <div class="benefit-icon">🤖</div>
-        <h3>AI-Assisted Decisions</h3>
-        <p>Officers get comprehensive AI reports so they can focus on fairness, not paperwork.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="cta-section">
-  <div class="container cta-inner reveal">
-    <h2>Transform Crop Insurance with AI</h2>
-    <p>Join thousands of farmers and officers already using Nyay Setu AI for faster, fairer claims.</p>
-    <div class="cta-btns">
-      <a href="login.html" class="btn-white">Submit Your Claim</a>
-      <a href="login.html?role=officer" class="btn-outline-white">Explore Dashboard →</a>
-    </div>
-  </div>
-</section>
-
-<!-- FOOTER -->
-<footer class="footer" id="contact">
-  <div class="container footer-inner">
-    <div class="footer-brand">
-      <div class="logo"><span class="logo-icon">🌾</span><span>Nyay Setu <span class="accent">AI</span></span></div>
-      <p>AI-powered transparent crop insurance verification for India's farmers.</p>
-      <div class="footer-socials">
-        <a href="#" aria-label="GitHub">🐙 GitHub</a>
-        <a href="#" aria-label="LinkedIn">💼 LinkedIn</a>
-      </div>
-    </div>
-    <div class="footer-links">
-      <h4>Quick Links</h4>
-      <ul>
-        <li><a href="#home">Home</a></li>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#workflow">Workflow</a></li>
-        <li><a href="#about">About</a></li>
-      </ul>
-    </div>
-    <div class="footer-contact">
-      <h4>Contact</h4>
-      <p>📧 support@nyaysetu.ai</p>
-      <p>📞 +91 98765 43210</p>
-      <p>🏛️ Ministry of Agriculture, India</p>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    <p>© 2025 Nyay Setu AI. Built with ❤️ for India's farmers.</p>
-  </div>
-</footer>
-
-<script src="landing.js"></script>
+  <script type="module" src="./landing.js"></script>
 </body>
 </html>

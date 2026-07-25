@@ -48,6 +48,40 @@ export default function App() {
   const [claimDetails, setClaimDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+
+  // ---- Connect MetaMask on load if already connected ----
+  useEffect(() => {
+    const checkWallet = async () => {
+      if (typeof window !== "undefined" && (window as any).ethereum) {
+        try {
+          const accounts = await (window as any).ethereum.request({ method: "eth_accounts" });
+          if (accounts.length > 0) {
+            setWalletAddress(accounts[0]);
+          }
+        } catch (e) {
+          console.error("Error checking wallet connection:", e);
+        }
+      }
+    };
+    checkWallet();
+  }, []);
+
+  const handleConnectWallet = async () => {
+    if (typeof window !== "undefined" && (window as any).ethereum) {
+      try {
+        const accounts = await (window as any).ethereum.request({ method: "eth_requestAccounts" });
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+        }
+      } catch (e) {
+        console.error("Error connecting MetaMask:", e);
+      }
+    } else {
+      alert("MetaMask is not installed. Please install it from metamask.io!");
+    }
+  };
+
   // ---- Resolve logged-in user based on session or demo fallback ----
   const DEMO_USERS = {
     farmer: { id: "farmer-1", name: "Rajesh Kumar", email: "rajesh.kumar@agrilink.in" },
@@ -192,8 +226,10 @@ export default function App() {
       const err = await res.json();
       throw new Error(err.error || "Decision upload failed");
     }
+    const decisionResult = await res.json();
     await fetchData();
     setSelectedClaimId(null);
+    return decisionResult;
   };
 
   const handleAppealClaim = async (claimId: string, reason: string, newEvidenceUrl?: string) => {
@@ -242,96 +278,64 @@ export default function App() {
   const canSwitchRoles = false;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FDFBF7] text-slate-800 flex flex-col font-sans">
       
       {/* GLOBAL HEADER */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+      <header className="bg-white/90 backdrop-blur-md border-b border-emerald-100 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             
             {/* Branding Logo */}
             <div
-              className="flex items-center gap-2.5 cursor-pointer"
+              className="flex items-center gap-3 cursor-pointer group"
               onClick={() => { window.location.href = "landing.html"; }}
             >
-              <div className="bg-blue-600 text-white p-2 rounded-xl shadow-md shadow-blue-600/5 flex items-center justify-center">
+              <div className="bg-gradient-to-br from-emerald-600 to-green-700 text-amber-300 p-2 rounded-2xl shadow-md shadow-emerald-700/20 flex items-center justify-center group-hover:scale-105 transition">
                 <Sprout className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1">
-                  Nyay Setu AI <span className="text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded border border-blue-200/50">Ledger</span>
+                <h1 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                  Nyay Setu <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">AI</span>
                 </h1>
-                <p className="text-[10px] text-slate-400 font-medium">Kisan Crop-Loss Verification Grid</p>
+                <p className="text-[11px] text-emerald-800/70 font-medium">Smart Kisan Insurance Grid</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Demo mode: full role switcher for hackathon evaluators */}
-              {canSwitchRoles && (
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                  <button
-                    onClick={() => { setCurrentRole("landing"); setSelectedClaimId(null); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      currentRole === "landing" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-900"
-                    }`}
-                  >
-                    🏠 Home
-                  </button>
-                  <button
-                    onClick={() => { setCurrentRole(UserRole.FARMER); setSelectedClaimId(null); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      currentRole === UserRole.FARMER ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"
-                    }`}
-                  >
-                    🌾 Farmer
-                  </button>
-                  <button
-                    onClick={() => { setCurrentRole(UserRole.OFFICER); setSelectedClaimId(null); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      currentRole === UserRole.OFFICER ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"
-                    }`}
-                  >
-                    🛡️ Officer
-                  </button>
-                  <button
-                    onClick={() => { setCurrentRole(UserRole.ADMIN); setSelectedClaimId(null); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                      currentRole === UserRole.ADMIN ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"
-                    }`}
-                  >
-                    ⛓️ Chain
-                  </button>
-                </div>
-              )}
-
               {/* Authenticated session: show user info + logout */}
               {!canSwitchRoles && sessionUser && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                  {walletAddress ? (
+                    <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 rounded-xl font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      {walletAddress.substring(0, 6)}...{walletAddress.slice(-4)}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleConnectWallet}
+                      className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-600 hover:text-indigo-700 bg-slate-50 hover:bg-indigo-50/30 border border-slate-200 hover:border-indigo-200 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer"
+                    >
+                      🔌 Connect Wallet
+                    </button>
+                  )}
                   <div className="hidden sm:flex flex-col items-end">
-                    <span className="text-xs font-bold text-slate-800">{sessionUser.name}</span>
-                    <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
+                    <span className="text-xs font-bold text-slate-900">{sessionUser.name}</span>
+                    <span className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
                       sessionUser.role === "officer"
-                        ? "bg-blue-50 text-blue-700"
-                        : "bg-emerald-50 text-emerald-700"
+                        ? "bg-blue-50 text-blue-800 border-blue-200"
+                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
                     }`}>
                       {sessionUser.role === "officer" ? "🏛️ Officer" : "🌾 Farmer"}
                     </span>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 px-3 py-1.5 rounded-xl transition-all"
+                    className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-red-600 bg-slate-100 hover:bg-red-50 border border-slate-200 hover:border-red-200 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer shadow-xs"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     Logout
                   </button>
                 </div>
-              )}
-
-              {/* Demo mode badge */}
-              {canSwitchRoles && (
-                <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                  🎯 Demo / Eval Mode
-                </span>
               )}
             </div>
 

@@ -34,6 +34,13 @@ export enum DamageType {
   OTHER = "Other"
 }
 
+export interface SupplementalEvidence {
+  id: string;
+  description: string;
+  imageUrls: string[];
+  submittedAt: string;
+}
+
 export interface Claim {
   id: string;
   farmerId: string;
@@ -53,7 +60,12 @@ export interface Claim {
   status: ClaimStatus;
   createdAt: string;
   supplementalEvidenceAt?: string;
+  supplementalEvidence?: SupplementalEvidence[];
   blockchainTxHash?: string;
+  blockchainBlockNumber?: number;
+  blockchainNetwork?: string;
+  blockchainMode?: "sepolia" | "simulated";
+  blockchainExplorerUrl?: string;
 }
 
 export interface AIResult {
@@ -90,6 +102,7 @@ export interface OfficerDecision {
   statusSelected: ClaimStatus;
   comments: string;
   blockchainBlockId?: number;
+  blockchainMode?: "sepolia" | "simulated";
   decidedAt: string;
 }
 
@@ -113,4 +126,7 @@ export interface BlockchainBlock {
   previousHash: string;
   currentHash: string;
   nonce: number;
+  network?: string;
+  simulated?: boolean;
+  explorerUrl?: string;
 }

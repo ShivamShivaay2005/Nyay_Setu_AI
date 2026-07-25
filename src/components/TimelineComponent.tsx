@@ -1,177 +1,282 @@
-import { CheckCircle2, Clock, ShieldCheck, CloudLightning, FileText, AlertTriangle } from "lucide-react";
-import { ClaimStatus, Claim } from "../types";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  CloudLightning,
+  FileText,
+  RotateCcw,
+  Scale,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+  XCircle,
+} from "lucide-react";
+import {
+  AIResult,
+  Appeal,
+  Claim,
+  ClaimStatus,
+  OfficerDecision,
+  WeatherVerification,
+} from "../types";
 
 interface TimelineComponentProps {
   claim: Claim;
-  weatherChecked: boolean;
-  hasAiResult: boolean;
-  hasDecision: boolean;
-  lastDecision?: {
-    officerName: string;
-    officerPosition?: string;
-    comments?: string;
-    decidedAt?: string;
-  };
-  blockchainBlockNumber?: number;
+  aiResult?: AIResult | null;
+  weatherVerification?: WeatherVerification | null;
+  decisions?: OfficerDecision[];
+  appeal?: Appeal | null;
 }
+
+type TimelineTone = "green" | "blue" | "cyan" | "amber" | "violet" | "rose" | "slate";
+
+interface TimelineEvent {
+  id: string;
+  title: string;
+  description: string;
+  time?: string;
+  meta?: string;
+  icon: typeof FileText;
+  tone: TimelineTone;
+}
+
+const toneClasses: Record<TimelineTone, string> = {
+  green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  blue: "border-blue-200 bg-blue-50 text-blue-700",
+  cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
+  amber: "border-amber-200 bg-amber-50 text-amber-700",
+  violet: "border-violet-200 bg-violet-50 text-violet-700",
+  rose: "border-rose-200 bg-rose-50 text-rose-700",
+  slate: "border-slate-200 bg-slate-50 text-slate-500",
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const decisionPresentation = (decision: OfficerDecision) => {
+  if (decision.statusSelected === ClaimStatus.APPROVED) {
+    return {
+      title: "Officer approved the claim",
+      icon: CheckCircle2,
+      tone: "green" as TimelineTone,
+    };
+  }
+  if (decision.statusSelected === ClaimStatus.REJECTED) {
+    return {
+      title: "Officer rejected the claim",
+      icon: XCircle,
+      tone: "rose" as TimelineTone,
+    };
+  }
+  if (decision.statusSelected === ClaimStatus.MORE_EVIDENCE) {
+    return {
+      title: "Officer requested more evidence",
+      icon: AlertTriangle,
+      tone: "amber" as TimelineTone,
+    };
+  }
+  return {
+    title: `Officer updated status to ${decision.statusSelected.replaceAll("_", " ")}`,
+    icon: Scale,
+    tone: "blue" as TimelineTone,
+  };
+};
 
 export default function TimelineComponent({
   claim,
-  weatherChecked,
-  hasAiResult,
-  hasDecision,
-  lastDecision,
+  aiResult,
+  weatherVerification,
+  decisions = [],
+  appeal,
 }: TimelineComponentProps) {
-  const steps = [
+  const events: TimelineEvent[] = [
     {
-      title: "Claim Submitted",
-      description: `Farmer logged damage details with GPS tracking.`,
-      time: claim.timestamp,
+      id: `claim-${claim.id}`,
+      title: "Farmer filed the original claim",
+      description: "Initial statement, crop-loss photographs, GPS location and loss estimate were submitted.",
+      time: claim.createdAt || claim.timestamp,
+      meta: `${claim.cropType} · ${claim.damageType} · ${claim.areaAcres} acres`,
       icon: FileText,
-      color: "text-emerald-600 bg-emerald-50 border-emerald-200",
-      isDone: true,
-    },
-    {
-      title: "Gemini AI Vision Audit",
-      description: hasAiResult
-        ? "Gemini analyzed crop damage severity and confidence score."
-        : "Pending AI analysis and vegetation stress review.",
-      time: hasAiResult ? "Completed" : "",
-      icon: ShieldCheck,
-      color: hasAiResult
-        ? "text-blue-600 bg-blue-50 border-blue-200"
-        : "text-slate-400 bg-slate-50 border-slate-200",
-      isDone: hasAiResult,
-    },
-    {
-      title: "Weather Cross-Reference",
-      description: ["Flood", "Drought", "Hail"].includes(claim.damageType)
-        ? weatherChecked
-          ? "Localized meteorological anomaly threshold verified."
-          : "Analyzing regional weather logs and AWS sensors."
-        : "Skipped (Not a meteorological cause)",
-      time: weatherChecked ? "Verified" : "",
-      icon: CloudLightning,
-      color: ["Flood", "Drought", "Hail"].includes(claim.damageType)
-        ? weatherChecked
-          ? "text-purple-600 bg-purple-50 border-purple-200"
-          : "text-slate-400 bg-slate-50 border-slate-200"
-        : "text-slate-300 bg-slate-50 border-slate-100",
-      isDone: !["Flood", "Drought", "Hail"].includes(claim.damageType) || weatherChecked,
-    },
-    {
-      title: "Officer Final Review",
-      description: hasDecision
-        ? `Status finalized: ${claim.status.replace("_", " ").toUpperCase()}`
-        : "Awaiting local government officer field validation and dual-check.",
-      time: hasDecision ? "Reviewed" : "In Queue",
-      icon: CheckCircle2,
-      color: hasDecision
-        ? claim.status === "approved"
-          ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-          : claim.status === "rejected"
-          ? "text-rose-600 bg-rose-50 border-rose-200"
-          : "text-amber-600 bg-amber-50 border-amber-200"
-        : "text-slate-400 bg-slate-50 border-slate-200",
-      isDone: hasDecision,
-    },
-    {
-      title: "Kisan Nyay Ledger Sealing",
-      description: claim.blockchainTxHash
-        ? `Proof secured in block block tx: ${claim.blockchainTxHash.substring(0, 16)}...`
-        : "Sealing block on approved audit outcome.",
-      time: claim.blockchainTxHash ? "Secured" : "",
-      icon: ShieldCheck,
-      color: claim.blockchainTxHash
-        ? "text-indigo-600 bg-indigo-50 border-indigo-200 font-semibold"
-        : "text-slate-400 bg-slate-50 border-slate-200",
-      isDone: !!claim.blockchainTxHash,
+      tone: "green",
     },
   ];
 
+  if (aiResult) {
+    events.push({
+      id: `ai-${claim.id}`,
+      title: "AI evidence assessment completed",
+      description: `${aiResult.cropTypeDetected} detected with ${Math.round(aiResult.confidenceScore * 100)}% confidence and ${aiResult.severity.toLowerCase()} reported severity.`,
+      time: aiResult.analyzedAt,
+      icon: Sparkles,
+      tone: "blue",
+    });
+  }
+
+  if (weatherVerification) {
+    events.push({
+      id: `weather-${claim.id}`,
+      title: "Weather record cross-checked",
+      description: weatherVerification.analysisNote || "Available station observations were matched against the reported event.",
+      time: weatherVerification.checkedAt,
+      meta: weatherVerification.stationName ? `Station: ${weatherVerification.stationName}` : undefined,
+      icon: CloudLightning,
+      tone: "cyan",
+    });
+  }
+
+  decisions.forEach((decision) => {
+    const presentation = decisionPresentation(decision);
+    events.push({
+      id: decision.id,
+      title: presentation.title,
+      description: decision.comments,
+      time: decision.decidedAt,
+      meta: `${decision.officerName}${decision.officerPosition ? ` · ${decision.officerPosition}` : ""}`,
+      icon: presentation.icon,
+      tone: presentation.tone,
+    });
+  });
+
+  (claim.supplementalEvidence || []).forEach((submission, index) => {
+    const photoCount = submission.imageUrls?.length || 0;
+    events.push({
+      id: submission.id || `supplement-${claim.id}-${index}`,
+      title: "Farmer re-submitted evidence",
+      description: submission.description || "The farmer uploaded additional crop-loss photographs for re-review.",
+      time: submission.submittedAt,
+      meta: `${photoCount} new photo${photoCount === 1 ? "" : "s"} · Re-claim round ${index + 1}`,
+      icon: RotateCcw,
+      tone: "violet",
+    });
+  });
+
+  if (appeal) {
+    events.push({
+      id: appeal.id,
+      title: "Farmer filed an appeal",
+      description: appeal.reason,
+      time: appeal.createdAt,
+      meta: "Grievance sent for re-evaluation",
+      icon: Scale,
+      tone: "violet",
+    });
+  }
+
+  events.sort((a, b) => {
+    const first = a.time ? new Date(a.time).getTime() : Number.MAX_SAFE_INTEGER;
+    const second = b.time ? new Date(b.time).getTime() : Number.MAX_SAFE_INTEGER;
+    return first - second;
+  });
+
+  const hasFinalDecision = [ClaimStatus.APPROVED, ClaimStatus.REJECTED].includes(claim.status);
+  if (!hasFinalDecision) {
+    const pendingCopy: Partial<Record<ClaimStatus, [string, string]>> = {
+      [ClaimStatus.PENDING_AI]: ["AI review pending", "The original evidence is waiting for automated assessment."],
+      [ClaimStatus.PENDING_WEATHER]: ["Weather verification pending", "The reported loss is being cross-checked against station data."],
+      [ClaimStatus.PENDING_OFFICER]: ["Officer review pending", "The complete evidence record is in the officer queue."],
+      [ClaimStatus.MORE_EVIDENCE]: ["Waiting for farmer evidence", "The officer’s request is open until the farmer submits a new response."],
+      [ClaimStatus.APPEALED]: ["Appeal review pending", "The appealed decision is waiting for a fresh officer review."],
+    };
+    const pending = pendingCopy[claim.status];
+    if (pending) {
+      events.push({
+        id: `pending-${claim.id}-${claim.status}`,
+        title: pending[0],
+        description: pending[1],
+        meta: "Current step",
+        icon: Clock,
+        tone: "slate",
+      });
+    }
+  }
+
+  const explorerUrl =
+    claim.blockchainExplorerUrl ||
+    (claim.blockchainMode === "sepolia" && claim.blockchainTxHash
+      ? `https://sepolia.etherscan.io/tx/${claim.blockchainTxHash}`
+      : "");
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-      <h3 className="text-sm font-semibold text-slate-900 mb-6 flex items-center gap-2">
-        <Clock className="w-4 h-4 text-emerald-600" />
-        Claim Resolution Timeline
-      </h3>
-
-      <div className="relative border-l-2 border-slate-100 ml-4 pl-6 space-y-8">
-        {steps.map((step, idx) => {
-          const Icon = step.icon;
-          return (
-            <div key={idx} className="relative">
-              {/* Timeline dot */}
-              <span className={`absolute -left-[35px] top-0 rounded-full border p-1.5 ${step.color} shadow-sm transition-all duration-300`}>
-                <Icon className="w-4 h-4" />
-              </span>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className={`text-sm font-medium ${step.isDone ? "text-slate-900 font-semibold" : "text-slate-500"}`}>
-                    {step.title}
-                  </h4>
-                  {step.time && (
-                    <span className="text-[10px] font-mono bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-medium">
-                      {step.time.includes("Z") ? new Date(step.time).toLocaleDateString() : step.time}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {step.description}
-                </p>
-
-                {/* Show Reviewing Officer details if available on Officer Final Review step */}
-                {idx === 3 && lastDecision && (
-                  <div className="mt-2.5 bg-slate-50 border border-slate-200/80 rounded-xl p-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-900">🏛️ {lastDecision.officerName}</span>
-                      </div>
-                      <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                        Assigned Auditor
-                      </span>
-                    </div>
-                    {lastDecision.officerPosition && (
-                      <p className="text-[11px] font-medium text-slate-600">
-                        {lastDecision.officerPosition}
-                      </p>
-                    )}
-                    {lastDecision.comments && (
-                      <p className="text-[11px] text-slate-500 italic border-t border-slate-200/60 pt-1.5 mt-1">
-                        &ldquo;{lastDecision.comments}&rdquo;
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+    <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+            <Clock className="h-4 w-4 text-emerald-700" />
+            Complete claim journey
+          </h3>
+          <p className="mt-1 text-[11px] text-slate-500">Every action is shown with its recorded date and time.</p>
+        </div>
+        <span className="rounded-full bg-emerald-50 px-3 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-emerald-800">
+          {events.length} events
+        </span>
       </div>
 
+      <ol className="relative ml-4 space-y-7 border-l-2 border-stone-100 pl-6">
+        {events.map((event) => {
+          const Icon = event.icon;
+          return (
+            <li key={event.id} className="relative">
+              <span className={`absolute -left-[35px] top-0 rounded-full border p-1.5 shadow-sm ${toneClasses[event.tone]}`}>
+                <Icon className="h-4 w-4" />
+              </span>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-bold text-slate-900">{event.title}</h4>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">{event.description}</p>
+                  {event.meta && (
+                    <p className="mt-2 inline-flex rounded-full bg-stone-100 px-2.5 py-1 text-[9px] font-bold text-stone-600">
+                      {event.meta}
+                    </p>
+                  )}
+                </div>
+                {event.time && (
+                  <time
+                    dateTime={event.time}
+                    className="shrink-0 rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-[9px] font-bold text-stone-600"
+                  >
+                    {formatDateTime(event.time)}
+                  </time>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
       {claim.blockchainTxHash && (
-        <div className="mt-6 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-start gap-3">
-          <ShieldCheck className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="text-xs font-bold text-indigo-900">Cryptographically Sealed Block</h4>
-            <p className="text-[11px] text-indigo-700 font-mono mt-1 select-all break-all leading-normal bg-indigo-100/50 p-1.5 rounded border border-indigo-100">
-              {claim.blockchainTxHash.startsWith("0x000") ? (
-                claim.blockchainTxHash
-              ) : (
-                <a
-                  href={`https://sepolia.etherscan.io/tx/${claim.blockchainTxHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline text-indigo-600 font-semibold inline-flex items-center gap-1"
-                >
-                  {claim.blockchainTxHash} <span className="text-[9px]">↗</span>
-                </a>
-              )}
-            </p>
-            <p className="text-[10px] text-indigo-500 mt-1">
-              This digital certificate acts as proof of damage. It cannot be altered by third parties or officials.
-            </p>
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="text-xs font-bold text-emerald-950">Latest decision proof</h4>
+              <span className="rounded-full bg-white px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.12em] text-emerald-700 ring-1 ring-emerald-100">
+                {claim.blockchainMode === "sepolia" ? "Ethereum Sepolia" : "Local simulator"}
+              </span>
+            </div>
+            {explorerUrl ? (
+              <a
+                href={explorerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 block break-all rounded border border-emerald-100 bg-white/70 p-1.5 font-mono text-[10px] font-semibold leading-normal text-emerald-800 hover:underline"
+              >
+                {claim.blockchainTxHash} ↗
+              </a>
+            ) : (
+              <p className="mt-1 break-all rounded border border-emerald-100 bg-white/70 p-1.5 font-mono text-[10px] leading-normal text-emerald-800">
+                {claim.blockchainTxHash}
+              </p>
+            )}
           </div>
         </div>
       )}

@@ -182,7 +182,49 @@ function getDB(): DBState {
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialState, null, 2), "utf-8");
   }
-  return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+  const data = JSON.parse(fs.readFileSync(DB_FILE, "utf-8")) as DBState;
+  let migratedLegacyEvidence = false;
+
+  // Older builds appended re-submitted text/photos into the original claim.
+  // Normalize those records once so the original evidence and every re-claim stay distinct.
+  data.claims = data.claims.map((claim) => {
+    const marker = "\n\n[Supplemental Evidence]\n";
+    if (
+      typeof claim.description !== "string" ||
+      !claim.description.includes(marker) ||
+      (Array.isArray(claim.supplementalEvidence) && claim.supplementalEvidence.length > 0)
+    ) {
+      return claim;
+    }
+
+    const [originalDescription, ...supplementalDescriptions] = claim.description.split(marker);
+    const allImages = Array.isArray(claim.imageUrls)
+      ? claim.imageUrls
+      : [claim.imageUrl].filter(Boolean);
+    const originalImages = allImages.length > 0 ? [allImages[0]] : [];
+    const supplementalImages = allImages.slice(1);
+    const submittedAt = claim.supplementalEvidenceAt || claim.createdAt || new Date().toISOString();
+
+    migratedLegacyEvidence = true;
+    return {
+      ...claim,
+      description: originalDescription,
+      imageUrl: originalImages[0] || claim.imageUrl,
+      imageUrls: originalImages,
+      supplementalEvidence: supplementalDescriptions.map((description: string, index: number) => ({
+        id: `evidence-legacy-${claim.id}-${index + 1}`,
+        description,
+        imageUrls: index === supplementalDescriptions.length - 1 ? supplementalImages : [],
+        submittedAt,
+      })),
+    };
+  });
+
+  if (migratedLegacyEvidence) {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+  }
+
+  return data;
 }
 
 function saveDB(data: DBState) {
@@ -209,34 +251,120 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
-// Lazy-initialization utility for Ethers Smart Contract (prevents crash on empty key)
+const KISAN_NYAY_LEDGER_ABI = [
+  "function createClaim(string _claimId, string _evidenceHash, string _status)",
+  "function updateStatus(string _claimId, string _newStatus, string _newEvidenceHash)",
+  "function getClaim(string _claimId) view returns (string claimId, string evidenceHash, string status, uint256 timestamp, address officerWallet)",
+  "function getTotalClaimsCount() view returns (uint256)",
+];
+
 let ledgerContract: ethers.Contract | null = null;
-let ethersSigner: ethers.Signer | null = null;
+let ledgerSignerAddress = "";
 
-function getLedgerContract(): ethers.Contract {
-  if (!ledgerContract) {
-    const rpcUrl = process.env.SEPOLIA_RPC_URL;
-    const privateKey = process.env.PRIVATE_KEY;
-    const contractAddress = process.env.CONTRACT_ADDRESS;
+function getBlockchainConfiguration() {
+  const rpcUrl = process.env.SEPOLIA_RPC_URL?.trim() || "";
+  const privateKey = process.env.PRIVATE_KEY?.trim() || "";
+  const contractAddress = process.env.CONTRACT_ADDRESS?.trim() || "";
+  return {
+    rpcUrl,
+    privateKey,
+    contractAddress,
+    configured: Boolean(rpcUrl && privateKey && contractAddress),
+    fallbackEnabled: process.env.BLOCKCHAIN_FALLBACK_ENABLED !== "false",
+  };
+}
 
-    if (!rpcUrl || !privateKey || !contractAddress) {
-      throw new Error("Blockchain environment variables are not fully configured (SEPOLIA_RPC_URL, PRIVATE_KEY, CONTRACT_ADDRESS).");
-    }
-
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const wallet = new ethers.Wallet(privateKey, provider);
-    
-    // Load ABI from hardhat artifacts
-    const artifactPath = path.resolve(process.cwd(), "artifacts/contracts/KisanNyayLedger.sol/KisanNyayLedger.json");
-    if (!fs.existsSync(artifactPath)) {
-      throw new Error(`Smart contract artifact not found at ${artifactPath}. Please run 'npx hardhat compile' first.`);
-    }
-    const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-    
-    ledgerContract = new ethers.Contract(contractAddress, artifact.abi, wallet);
-    ethersSigner = wallet;
+async function getLedgerContract() {
+  if (ledgerContract) {
+    return { contract: ledgerContract, signerAddress: ledgerSignerAddress };
   }
-  return ledgerContract;
+
+  const configuration = getBlockchainConfiguration();
+  if (!configuration.configured) {
+    throw new Error("Sepolia is not configured. Add SEPOLIA_RPC_URL, PRIVATE_KEY and CONTRACT_ADDRESS.");
+  }
+  if (!ethers.isAddress(configuration.contractAddress)) {
+    throw new Error("CONTRACT_ADDRESS is not a valid Ethereum address.");
+  }
+
+  const provider = new ethers.JsonRpcProvider(configuration.rpcUrl);
+  const signer = new ethers.Wallet(configuration.privateKey, provider);
+  ledgerSignerAddress = await signer.getAddress();
+  ledgerContract = new ethers.Contract(
+    configuration.contractAddress,
+    KISAN_NYAY_LEDGER_ABI,
+    signer,
+  );
+  return { contract: ledgerContract, signerAddress: ledgerSignerAddress };
+}
+
+async function writeDecisionToSepolia(claimId: string, status: string, evidenceHash: string) {
+  const { contract, signerAddress } = await getLedgerContract();
+  let claimExists = true;
+  try {
+    await contract.getClaim(claimId);
+  } catch {
+    claimExists = false;
+  }
+
+  const transaction = claimExists
+    ? await contract.updateStatus(claimId, status, evidenceHash)
+    : await contract.createClaim(claimId, evidenceHash, status);
+  const receipt = await transaction.wait();
+  if (!receipt) {
+    throw new Error("Sepolia transaction was submitted but no receipt was returned.");
+  }
+
+  return {
+    txHash: transaction.hash as string,
+    blockNumber: receipt.blockNumber as number,
+    walletAddress: signerAddress,
+    timestamp: new Date().toISOString(),
+    network: "sepolia",
+    simulated: false,
+    explorerUrl: `https://sepolia.etherscan.io/tx/${transaction.hash}`,
+  };
+}
+
+// Upload base64 image to IPFS via Pinata API (optional)
+async function uploadToPinata(base64Data: string): Promise<string> {
+  const pinataJwt = process.env.PINATA_JWT;
+  if (!pinataJwt || pinataJwt === "MY_PINATA_JWT") {
+    console.log("Pinata JWT not configured. Skipping real IPFS upload.");
+    return "";
+  }
+
+  try {
+    const mimeMatch = base64Data.match(/^data:([^;]+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const rawData = base64Data.replace(/^data:[^;]+;base64,/, "");
+    const buffer = Buffer.from(rawData, "base64");
+    
+    const formData = new globalThis.FormData();
+    const blob = new globalThis.Blob([buffer], { type: mimeType });
+    formData.append("file", blob, `crop-claim-${Date.now()}.jpg`);
+    
+    console.log("Uploading claim image to Pinata IPFS...");
+    const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${pinataJwt}`,
+      },
+      body: formData as any,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Pinata error: ${errText}`);
+    }
+
+    const result: any = await res.json();
+    console.log(`Successfully pinned to IPFS! CID: ${result.IpfsHash}`);
+    return `ipfs://${result.IpfsHash}`;
+  } catch (e: any) {
+    console.error("IPFS upload failed:", e.message);
+    return "";
+  }
 }
 
 // Middleware setup
@@ -284,7 +412,7 @@ app.get("/api/claims/:id", (req, res) => {
 });
 
 // 3. SUBMIT A NEW CROP CLAIM
-app.post("/api/claims", (req, res) => {
+app.post("/api/claims", async (req, res) => {
   try {
     const {
       farmerId,
@@ -307,6 +435,17 @@ app.post("/api/claims", (req, res) => {
     }
 
     const db = getDB();
+
+    // Upload to Pinata IPFS if JWT is configured
+    let ipfsUrl = "";
+    if (imageUrl && imageUrl.startsWith("data:image")) {
+      try {
+        ipfsUrl = await uploadToPinata(imageUrl);
+      } catch (ipfsErr: any) {
+        console.warn("IPFS Pinata upload failed, falling back to local base64:", ipfsErr.message);
+      }
+    }
+
     const newClaim = {
       id: "claim-" + Date.now(),
       farmerId,
@@ -320,6 +459,7 @@ app.post("/api/claims", (req, res) => {
       description: description || "",
       imageUrl,
       imageUrls: Array.isArray(imageUrls) && imageUrls.length ? imageUrls : (imageUrl ? [imageUrl] : []),
+      ipfsUrl: ipfsUrl || "",
       latitude: Number(latitude) || 26.8467,
       longitude: Number(longitude) || 80.9462,
       timestamp: new Date().toISOString(),
@@ -583,26 +723,30 @@ Do not add markdown formatting or wrappers outside the raw JSON object. Use vali
   }
 });
 
-// 5. OFFICER DECISION & CRYPTOGRAPHIC BLOCKCHAIN LEDGER BLOCK GENERATION
+// 5. OFFICER DECISION & SMART-CONTRACT / FALLBACK LEDGER GENERATION
 app.post("/api/claims/:id/decide", async (req, res) => {
   try {
     const claimId = req.params.id;
     const { officerId, officerName, officerPosition, statusSelected, comments, officerWallet } = req.body;
+    const allowedStatuses = new Set(["approved", "rejected", "more_evidence", "appealed"]);
 
     if (!officerId || !officerName || !statusSelected || !comments) {
       return res.status(400).json({ error: "Missing required decision fields" });
     }
+    if (!allowedStatuses.has(statusSelected)) {
+      return res.status(400).json({ error: "Unsupported claim decision status" });
+    }
 
     const db = getDB();
-    const claimIndex = db.claims.findIndex((c) => c.id === claimId);
+    const claimIndex = db.claims.findIndex((claim) => claim.id === claimId);
     if (claimIndex === -1) {
       return res.status(404).json({ error: "Claim not found" });
     }
 
-    // 1. Record the Officer's decision in db
-    const decisionId = "dec-" + Date.now();
+    const claim = db.claims[claimIndex];
+    const decidedAt = new Date().toISOString();
     const newDecision = {
-      id: decisionId,
+      id: "dec-" + Date.now(),
       claimId,
       officerId,
       officerName,
@@ -610,104 +754,123 @@ app.post("/api/claims/:id/decide", async (req, res) => {
       statusSelected,
       comments,
       blockchainBlockId: null as number | null,
-      decidedAt: new Date().toISOString()
+      blockchainMode: "simulated",
+      decidedAt,
     };
 
-    // 2. Cryptographic Block Generation representing the Smart Contract
-    const lastBlock = db.blockchainBlocks[db.blockchainBlocks.length - 1];
-    const newBlockNumber = lastBlock ? lastBlock.blockNumber + 1 : 0;
-    const previousHash = lastBlock ? lastBlock.currentHash : "0x0";
-
-    // Create an immutable evidence payload hash representing the claim & report state
+    // Hash the complete evidence state without putting private photos or descriptions on-chain.
+    const originalImageHashes = (claim.imageUrls || [claim.imageUrl].filter(Boolean)).map((image: string) =>
+      crypto.createHash("sha256").update(image).digest("hex"),
+    );
+    const supplementalEvidenceHashes = (claim.supplementalEvidence || []).map((submission: any) => ({
+      submittedAt: submission.submittedAt,
+      descriptionHash: crypto.createHash("sha256").update(submission.description || "").digest("hex"),
+      imageHashes: (submission.imageUrls || []).map((image: string) =>
+        crypto.createHash("sha256").update(image).digest("hex"),
+      ),
+    }));
     const evidencePayload = JSON.stringify({
       claimId,
-      cropType: db.claims[claimIndex].cropType,
-      damageType: db.claims[claimIndex].damageType,
-      estimatedLoss: db.claims[claimIndex].estimatedLossInr,
-      imageUrl: db.claims[claimIndex].imageUrl.substring(0, 200) + "..." // truncated for string size
+      cropType: claim.cropType,
+      damageType: claim.damageType,
+      areaAcres: claim.areaAcres,
+      estimatedLossInr: claim.estimatedLossInr,
+      latitude: claim.latitude,
+      longitude: claim.longitude,
+      originalImageHashes,
+      supplementalEvidenceHashes,
     });
     const evidenceHash = "0x" + crypto.createHash("sha256").update(evidencePayload).digest("hex");
 
-    let txHash = "";
-    let blockNumber = newBlockNumber;
+    const configuration = getBlockchainConfiguration();
+    let blockchainRecord: {
+      txHash: string;
+      blockNumber: number;
+      walletAddress: string;
+      timestamp: string;
+      network: string;
+      simulated: boolean;
+      explorerUrl?: string;
+    } | null = null;
+    let blockchainWarning = "";
 
-    try {
-      const contract = getLedgerContract();
-      console.log(`Sending transaction to Sepolia smart contract for claim ${claimId}...`);
-      
-      // Check if claim already exists on-chain
-      let exists = false;
+    if (configuration.configured) {
       try {
-        await contract.getClaim(claimId);
-        exists = true;
-      } catch (err) {
-        exists = false;
+        blockchainRecord = await writeDecisionToSepolia(claimId, statusSelected, evidenceHash);
+      } catch (error: any) {
+        blockchainWarning = error?.shortMessage || error?.message || "Sepolia transaction failed";
+        if (!configuration.fallbackEnabled) {
+          return res.status(502).json({
+            error: "The Sepolia transaction failed and simulator fallback is disabled.",
+            blockchainError: blockchainWarning,
+          });
+        }
       }
+    }
 
-      let tx;
-      if (exists) {
-        tx = await contract.updateStatus(claimId, statusSelected, evidenceHash);
-      } else {
-        tx = await contract.createClaim(claimId, evidenceHash, statusSelected);
-      }
+    const lastBlock = db.blockchainBlocks[db.blockchainBlocks.length - 1];
+    const previousHash = lastBlock?.currentHash || "0x0";
+    let nonce = 0;
 
-      console.log(`Transaction sent! Hash: ${tx.hash}. Waiting for confirmation...`);
-      const receipt = await tx.wait();
-      txHash = tx.hash;
-      blockNumber = receipt.blockNumber;
-      console.log(`Transaction mined in block ${blockNumber}!`);
-    } catch (contractError: any) {
-      console.warn("Real blockchain transaction failed or not configured. Running fallback simulator. Error:", contractError.message);
-      
-      // Perform a simple Proof of Work mining simulator (finding a hash starting with "0000") to demonstrate blockchain mechanics!
-      let nonce = 0;
-      let currentHash = "";
+    if (!blockchainRecord) {
+      const blockNumber = lastBlock ? Number(lastBlock.blockNumber) + 1 : 0;
       const walletAddress = officerWallet || "0x" + crypto.randomBytes(20).toString("hex");
-      const blockTimestamp = new Date().toISOString();
+      let simulatedHash = "";
 
       while (nonce < 100000) {
-        const blockString = `${newBlockNumber}${claimId}${evidenceHash}${statusSelected}${blockTimestamp}${walletAddress}${previousHash}${nonce}`;
-        currentHash = "0x" + crypto.createHash("sha256").update(blockString).digest("hex");
-        if (currentHash.startsWith("0x000")) {
-          break;
-        }
+        const blockString = `${blockNumber}${claimId}${evidenceHash}${statusSelected}${decidedAt}${walletAddress}${previousHash}${nonce}`;
+        simulatedHash = "0x" + crypto.createHash("sha256").update(blockString).digest("hex");
+        if (simulatedHash.startsWith("0x000")) break;
         nonce++;
       }
 
-      txHash = currentHash;
-      blockNumber = newBlockNumber;
-
-      const newBlock = {
-        blockNumber: newBlockNumber,
-        claimId,
-        evidenceHash,
-        status: statusSelected,
-        timestamp: blockTimestamp,
-        officerWallet: walletAddress,
-        previousHash,
-        currentHash,
-        nonce
+      blockchainRecord = {
+        txHash: simulatedHash,
+        blockNumber,
+        walletAddress,
+        timestamp: decidedAt,
+        network: "local-simulator",
+        simulated: true,
       };
-
-      // Store block in db blockchain ledger
-      db.blockchainBlocks.push(newBlock);
     }
 
-    // Update claim status & attach the final transactions hash on-chain!
-    db.claims[claimIndex].status = statusSelected;
-    db.claims[claimIndex].blockchainTxHash = txHash;
+    db.blockchainBlocks.push({
+      blockNumber: blockchainRecord.blockNumber,
+      claimId,
+      evidenceHash,
+      status: statusSelected,
+      timestamp: blockchainRecord.timestamp,
+      officerWallet: blockchainRecord.walletAddress,
+      previousHash,
+      currentHash: blockchainRecord.txHash,
+      nonce,
+      network: blockchainRecord.network,
+      simulated: blockchainRecord.simulated,
+      explorerUrl: blockchainRecord.explorerUrl || "",
+    });
 
-    // Attach blockId reference to decision logs
-    newDecision.blockchainBlockId = blockNumber;
+    claim.status = statusSelected;
+    claim.blockchainTxHash = blockchainRecord.txHash;
+    claim.blockchainBlockNumber = blockchainRecord.blockNumber;
+    claim.blockchainNetwork = blockchainRecord.network;
+    claim.blockchainMode = blockchainRecord.simulated ? "simulated" : "sepolia";
+    claim.blockchainExplorerUrl = blockchainRecord.explorerUrl || "";
+
+    newDecision.blockchainBlockId = blockchainRecord.blockNumber;
+    newDecision.blockchainMode = claim.blockchainMode;
     db.officerDecisions.push(newDecision);
-
+    db.claims[claimIndex] = claim;
     saveDB(db);
 
     res.json({
       success: true,
       claimStatus: statusSelected,
-      txHash: txHash,
-      blockNumber: blockNumber
+      txHash: blockchainRecord.txHash,
+      blockNumber: blockchainRecord.blockNumber,
+      blockchainMode: claim.blockchainMode,
+      network: blockchainRecord.network,
+      explorerUrl: blockchainRecord.explorerUrl || null,
+      warning: blockchainWarning || null,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -772,20 +935,20 @@ app.post("/api/claims/:id/supplemental-evidence", (req, res) => {
       return res.status(400).json({ error: "Claim is not awaiting evidence" });
     }
 
-    // Append supplemental description
-    if (additionalDescription) {
-      claim.description = (claim.description || "") + "\n\n[Supplemental Evidence]\n" + additionalDescription;
-    }
+    const submittedAt = new Date().toISOString();
+    const supplementalSubmission = {
+      id: "evidence-" + Date.now(),
+      description: additionalDescription || "",
+      imageUrls: Array.isArray(additionalImageUrls) ? additionalImageUrls : [],
+      submittedAt,
+    };
 
-    // Append new images to existing imageUrls
-    if (Array.isArray(additionalImageUrls) && additionalImageUrls.length) {
-      claim.imageUrls = [...(claim.imageUrls || [claim.imageUrl].filter(Boolean)), ...additionalImageUrls];
-      // Update primary imageUrl to latest
-      claim.imageUrl = claim.imageUrls[0];
-    }
-
-    // Record the supplemental submission timestamp
-    claim.supplementalEvidenceAt = new Date().toISOString();
+    // Keep re-submitted evidence separate from the originally filed statement and photos.
+    claim.supplementalEvidence = [
+      ...(Array.isArray(claim.supplementalEvidence) ? claim.supplementalEvidence : []),
+      supplementalSubmission,
+    ];
+    claim.supplementalEvidenceAt = submittedAt;
 
     // Move back to officer review queue
     claim.status = "pending_officer";
@@ -793,7 +956,7 @@ app.post("/api/claims/:id/supplemental-evidence", (req, res) => {
     db.claims[claimIndex] = claim;
     saveDB(db);
 
-    res.json({ success: true, status: "pending_officer" });
+    res.json({ success: true, status: "pending_officer", supplementalSubmission });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -809,7 +972,18 @@ app.get("/api/blockchain", (req, res) => {
   }
 });
 
-// 8. GET HIGH LEVEL LEDGER STATISTICS (for landing page / admin dashboard)
+app.get("/api/blockchain/status", (_req, res) => {
+  const configuration = getBlockchainConfiguration();
+  res.json({
+    configured: configuration.configured,
+    mode: configuration.configured ? "sepolia" : "local-simulator",
+    network: configuration.configured ? "Ethereum Sepolia" : "Local cryptographic ledger",
+    contractAddress: configuration.contractAddress || null,
+    fallbackEnabled: configuration.fallbackEnabled,
+  });
+});
+
+// 9. GET HIGH LEVEL LEDGER STATISTICS (for landing page / admin dashboard)
 app.get("/api/stats", (req, res) => {
   try {
     const db = getDB();

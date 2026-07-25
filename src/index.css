@@ -1,34 +1,276 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --color-brand-blue: #2563eb;
-  --color-brand-blue-hover: #1d4ed8;
-  --color-brand-border: #e2e8f0;
-  --color-brand-bg: #f8fafc;
+  --font-display: "Outfit", sans-serif;
+  --color-agri-green: #15803D;
+  --color-agri-emerald: #059669;
+  --color-agri-gold: #EAB308;
+  --color-agri-bg: #FDFBF7;
 }
 
-/* Custom UI adjustments to match Clean Utility / Minimal style */
+:root {
+  --agri-green: #15803D;
+  --agri-emerald: #059669;
+  --agri-gold: #EAB308;
+  --agri-bg: #FDFBF7;
+  --agri-card: #FFFFFF;
+  --agri-border: #E2E8F0;
+}
+
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-brand-bg);
-  color: #1e293b;
+  background-color: var(--agri-bg);
+  color: #0F172A;
+  min-height: 100vh;
 }
 
-/* Custom scrollbars for clean dashboard utility panels */
+/* Warm Agricultural Button Styling */
+.btn-agri-primary {
+  background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+  color: #FFFFFF;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+}
+
+.btn-agri-primary:hover {
+  background: linear-gradient(135deg, #15803D 0%, #166534 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.35);
+}
+
+.btn-agri-gold {
+  background: linear-gradient(135deg, #FACC15 0%, #EAB308 100%);
+  color: #713F12;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(234, 179, 8, 0.25);
+}
+
+.btn-agri-gold:hover {
+  background: linear-gradient(135deg, #EAB308 0%, #CA8A04 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(234, 179, 8, 0.35);
+}
+
+.agri-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.agri-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* Farmer command centre */
+.farmer-dashboard {
+  --field-green: #166534;
+  --field-deep: #052e16;
+  --harvest-gold: #facc15;
+}
+
+.farmer-command {
+  position: relative;
+  isolation: isolate;
+}
+
+.farmer-command__image,
+.farmer-command__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.farmer-command__image {
+  z-index: -2;
+  background-position: 75% 42%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0.46;
+  filter: saturate(0.95) contrast(1.05);
+}
+
+.farmer-command__veil {
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(3, 34, 18, 0.97) 0%, rgba(3, 52, 29, 0.84) 52%, rgba(5, 46, 22, 0.42) 100%),
+    linear-gradient(0deg, rgba(3, 24, 13, 0.35), transparent 45%);
+}
+
+.farmer-command__content {
+  position: relative;
+  padding: 1.25rem;
+}
+
+.officer-command {
+  position: relative;
+  isolation: isolate;
+}
+
+.officer-command__image,
+.officer-command__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.officer-command__image {
+  z-index: -2;
+  background-position: 76% 38%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0.38;
+  filter: saturate(0.85) contrast(1.08);
+}
+
+.officer-command__veil {
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(2, 30, 16, 0.98) 0%, rgba(5, 62, 34, 0.88) 55%, rgba(20, 83, 45, 0.5) 100%),
+    linear-gradient(0deg, rgba(2, 24, 13, 0.45), transparent 45%);
+}
+
+.officer-command__content {
+  position: relative;
+  padding: 1.25rem;
+}
+
+.agri-panel {
+  border: 1px solid #e7e5e4;
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 1.25rem;
+  box-shadow: 0 12px 40px rgba(27, 67, 45, 0.06);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #047857;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.field-reading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+  border: 1px solid #e7e5e4;
+  border-radius: 1rem;
+  background: #fafaf9;
+  padding: 0.75rem;
+}
+
+.field-reading strong {
+  margin-top: 0.2rem;
+  color: #0f172a;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.field-reading span {
+  color: #78716c;
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.resource-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid #e7e5e4;
+  border-radius: 1rem;
+  background: #fafaf9;
+  padding: 1rem;
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.resource-card:hover {
+  border-color: #86efac;
+  background: #f0fdf4;
+  box-shadow: 0 12px 26px rgba(22, 101, 52, 0.08);
+  transform: translateY(-2px);
+}
+
+.farmer-dashboard button:focus-visible,
+.farmer-dashboard a:focus-visible,
+.farmer-dashboard input:focus-visible,
+.farmer-dashboard select:focus-visible,
+.farmer-dashboard textarea:focus-visible {
+  outline: 3px solid rgba(250, 204, 21, 0.75);
+  outline-offset: 2px;
+}
+
+.officer-dashboard button:focus-visible,
+.officer-dashboard a:focus-visible,
+.officer-dashboard input:focus-visible,
+.officer-dashboard textarea:focus-visible {
+  outline: 3px solid rgba(250, 204, 21, 0.75);
+  outline-offset: 2px;
+}
+
+@media (min-width: 640px) {
+  .farmer-command__content,
+  .officer-command__content,
+  .agri-panel {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .farmer-command__image,
+  .officer-command__image {
+    background-position: 68% center;
+    opacity: 0.32;
+  }
+
+  .farmer-command__veil,
+  .officer-command__veil {
+    background: linear-gradient(120deg, rgba(3, 34, 18, 0.98), rgba(5, 76, 41, 0.78));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farmer-dashboard *,
+  .farmer-dashboard *::before,
+  .farmer-dashboard *::after,
+  .officer-dashboard *,
+  .officer-dashboard *::before,
+  .officer-dashboard *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #F1F5F9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: #CBD5E1;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #94A3B8;
 }

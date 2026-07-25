@@ -1,385 +1,204 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Login – Nyay Setu AI | Kisan Nyay Ledger</title>
-<meta name="description" content="Secure login portal for Nyay Setu AI – Crop Insurance Claim Verification Platform."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;}
-body{font-family:'Inter',sans-serif;background:#0F172A;color:#F1F5F9;min-height:100vh;overflow-x:hidden;display:flex;flex-direction:column;}
-
-/* Background */
-.bg-grid{position:fixed;inset:0;background-image:radial-gradient(circle at 20% 50%,rgba(16,185,129,0.08) 0%,transparent 50%),radial-gradient(circle at 80% 20%,rgba(59,130,246,0.08) 0%,transparent 50%),radial-gradient(circle at 60% 80%,rgba(139,92,246,0.06) 0%,transparent 50%);pointer-events:none;z-index:0;}
-.grid-lines{position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0;}
-
-/* Navbar */
-nav{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:20px 40px;border-bottom:1px solid rgba(255,255,255,0.06);}
-.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:#F1F5F9;font-weight:800;font-size:1.1rem;}
-.logo-icon-wrap{background:linear-gradient(135deg,#10B981,#059669);width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
-.nav-back{color:rgba(255,255,255,0.5);text-decoration:none;font-size:0.85rem;font-weight:500;display:flex;align-items:center;gap:6px;transition:color 0.2s;}
-.nav-back:hover{color:#10B981;}
-
-/* Main layout */
-main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;position:relative;z-index:1;}
-.login-wrap{display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:960px;width:100%;border-radius:24px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.08);}
-
-/* Left Panel */
-.left-panel{background:linear-gradient(145deg,#0F1E1C 0%,#0A1628 100%);padding:56px 48px;display:flex;flex-direction:column;justify-content:center;gap:32px;position:relative;overflow:hidden;}
-.left-panel::before{content:'';position:absolute;top:-80px;right:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(16,185,129,0.15),transparent 70%);border-radius:50%;}
-.left-panel::after{content:'';position:absolute;bottom:-60px;left:-60px;width:250px;height:250px;background:radial-gradient(circle,rgba(59,130,246,0.12),transparent 70%);border-radius:50%;}
-.panel-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,0.15);color:#10B981;border:1px solid rgba(16,185,129,0.25);padding:6px 14px;border-radius:100px;font-size:0.75rem;font-weight:600;width:fit-content;}
-.panel-title{font-size:2rem;font-weight:900;line-height:1.15;color:#F1F5F9;}
-.panel-title span{color:#10B981;}
-.panel-sub{color:rgba(255,255,255,0.5);font-size:0.9rem;line-height:1.6;}
-
-/* Flow cards */
-.flow-cards{display:flex;flex-direction:column;gap:12px;position:relative;z-index:1;}
-.flow-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;transition:all 0.3s;}
-.flow-card:hover{background:rgba(255,255,255,0.08);border-color:rgba(16,185,129,0.3);transform:translateX(4px);}
-.flow-card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
-.fc-green{background:rgba(16,185,129,0.15);}
-.fc-blue{background:rgba(59,130,246,0.15);}
-.fc-purple{background:rgba(139,92,246,0.15);}
-.flow-card-text h4{font-size:0.8rem;font-weight:700;color:#F1F5F9;}
-.flow-card-text p{font-size:0.72rem;color:rgba(255,255,255,0.45);margin-top:2px;}
-
-/* Right Panel (Login Form) */
-.right-panel{background:#0F172A;padding:56px 48px;display:flex;flex-direction:column;justify-content:center;gap:28px;}
-.form-title{font-size:1.5rem;font-weight:800;color:#F1F5F9;}
-.form-sub{color:rgba(255,255,255,0.4);font-size:0.85rem;margin-top:4px;}
-
-/* Role selector */
-.role-selector{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.role-btn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 12px;border-radius:14px;border:2px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.2s;}
-.role-btn:hover{border-color:rgba(16,185,129,0.4);background:rgba(16,185,129,0.05);}
-.role-btn.active{border-color:#10B981;background:rgba(16,185,129,0.1);}
-.role-btn.active-officer{border-color:#3B82F6;background:rgba(59,130,246,0.1);}
-.role-icon{font-size:1.8rem;}
-.role-name{font-size:0.8rem;font-weight:700;color:#F1F5F9;}
-.role-desc{font-size:0.7rem;color:rgba(255,255,255,0.4);text-align:center;}
-
-/* Form fields */
-.form-group{display:flex;flex-direction:column;gap:6px;}
-label{font-size:0.75rem;font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.06em;}
-input[type=email],input[type=password],input[type=text]{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 16px;color:#F1F5F9;font-size:0.875rem;font-family:'Inter',sans-serif;outline:none;transition:all 0.2s;}
-input:focus{border-color:#10B981;background:rgba(16,185,129,0.05);box-shadow:0 0 0 3px rgba(16,185,129,0.1);}
-input::placeholder{color:rgba(255,255,255,0.2);}
-
-/* Submit button */
-.btn-login{width:100%;background:linear-gradient(135deg,#10B981,#059669);color:#fff;border:none;border-radius:12px;padding:14px;font-size:0.9rem;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;}
-.btn-login:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(16,185,129,0.35);}
-.btn-login:active{transform:translateY(0);}
-.btn-login.officer-btn{background:linear-gradient(135deg,#3B82F6,#2563EB);}
-.btn-login.officer-btn:hover{box-shadow:0 8px 24px rgba(59,130,246,0.35);}
-
-/* Demo credentials */
-.demo-creds{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;}
-.demo-title{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.35);}
-.demo-accounts{display:flex;flex-direction:column;gap:6px;}
-.demo-acc{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;cursor:pointer;transition:background 0.2s;}
-.demo-acc:hover{background:rgba(255,255,255,0.06);}
-.demo-acc-info{display:flex;flex-direction:column;gap:1px;}
-.demo-acc-email{font-size:0.75rem;font-weight:600;color:rgba(255,255,255,0.7);}
-.demo-acc-role{font-size:0.65rem;color:rgba(255,255,255,0.35);}
-.demo-use{font-size:0.68rem;font-weight:600;color:#10B981;text-decoration:none;white-space:nowrap;}
-.demo-acc.officer-acc .demo-use{color:#60A5FA;}
-
-/* Error message */
-.error-msg{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#FCA5A5;display:none;}
-.error-msg.show{display:block;}
-
-/* Loading spinner */
-.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top:2px solid #fff;border-radius:50%;animation:spin 0.8s linear infinite;display:none;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-/* Divider */
-.divider{display:flex;align-items:center;gap:12px;}
-.divider-line{flex:1;height:1px;background:rgba(255,255,255,0.08);}
-.divider-text{font-size:0.72rem;color:rgba(255,255,255,0.3);font-weight:500;}
-
-/* Links */
-.landing-link{text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.35);}
-.landing-link a{color:#10B981;text-decoration:none;font-weight:600;}
-.landing-link a:hover{text-decoration:underline;}
-
-/* Toast */
-.toast{position:fixed;bottom:24px;right:24px;background:#1E293B;border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 18px;font-size:0.85rem;font-weight:500;color:#F1F5F9;box-shadow:0 20px 40px rgba(0,0,0,0.4);transform:translateY(80px);opacity:0;transition:all 0.3s;z-index:100;display:flex;align-items:center;gap:10px;}
-.toast.show{transform:translateY(0);opacity:1;}
-.toast-icon{font-size:1.1rem;}
-
-/* Responsive */
-@media(max-width:768px){
-  nav{padding:16px 20px;}
-  .login-wrap{grid-template-columns:1fr;max-width:420px;}
-  .left-panel{display:none;}
-  .right-panel{padding:40px 28px;}
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portal Login — Nyay Setu AI</title>
+  <meta name="description" content="Sign in to the Nyay Setu AI farmer or officer crop-claim portal." />
+  <meta name="theme-color" content="#07150e" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./login.css" />
 </head>
-<body>
+<body data-role="farmer">
+  <!--
+    Reference direction:
+    - Universal Sompo PMFBY: trust-first crop guidance and 72-hour claim messaging.
+    - HH Goa: bold green/yellow palette, mono details, and strong editorial rhythm.
+  -->
+  <a class="skip-link" href="#loginForm">Skip to login form</a>
 
-<div class="bg-grid"></div>
-<div class="grid-lines"></div>
-
-<nav>
-  <a href="landing.html" class="nav-logo">
-    <div class="logo-icon-wrap">🌾</div>
-    <span>Nyay Setu <span style="color:#10B981">AI</span></span>
-  </a>
-  <a href="landing.html" class="nav-back">← Back to Home</a>
-</nav>
-
-<main>
-  <div class="login-wrap">
-
-    <!-- LEFT INFO PANEL -->
-    <div class="left-panel">
-      <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:24px;">
-        <div class="panel-badge">🏛️ Government of India Initiative</div>
-        <div>
-          <h1 class="panel-title">Welcome to<br/><span>Nyay Setu AI</span></h1>
-          <p class="panel-sub" style="margin-top:12px;">AI-powered crop insurance verification platform. Secure, transparent, and tamper-proof.</p>
-        </div>
-
-        <div class="flow-cards">
-          <div class="flow-card">
-            <div class="flow-card-icon fc-green">👨‍🌾</div>
-            <div class="flow-card-text">
-              <h4>Farmer Portal</h4>
-              <p>Submit claims, track status, raise appeals</p>
-            </div>
-          </div>
-          <div class="flow-card">
-            <div class="flow-card-icon fc-blue">🏛️</div>
-            <div class="flow-card-text">
-              <h4>Officer Portal</h4>
-              <p>Review claims, AI reports, approve decisions</p>
-            </div>
-          </div>
-          <div class="flow-card">
-            <div class="flow-card-icon fc-purple">⛓️</div>
-            <div class="flow-card-text">
-              <h4>Blockchain Audit</h4>
-              <p>Immutable record of every decision on-chain</p>
-            </div>
-          </div>
-        </div>
-
-        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px;font-size:0.78rem;color:rgba(255,255,255,0.35);line-height:1.6;">
-          🔒 All sessions are encrypted and role-isolated. Farmers cannot access officer data and vice versa.
-        </div>
-      </div>
+  <header class="auth-header">
+    <a class="brand" href="landing.html" aria-label="Nyay Setu AI home">
+      <span class="brand-mark" aria-hidden="true">🌾</span>
+      <span class="brand-copy">
+        <strong>Nyay Setu</strong>
+        <small>AI crop claims</small>
+      </span>
+    </a>
+    <div class="header-actions">
+      <span class="prototype-pill">Prototype access</span>
+      <a class="back-link" href="landing.html"><span aria-hidden="true">←</span> Back to home</a>
     </div>
+  </header>
 
-    <!-- RIGHT LOGIN FORM -->
-    <div class="right-panel">
-      <div>
-        <h2 class="form-title">Sign In</h2>
-        <p class="form-sub">Select your role and enter your credentials</p>
-      </div>
+  <main class="auth-main">
+    <div class="auth-shell">
+      <section class="field-story" aria-labelledby="storyTitle">
+        <img
+          class="field-image"
+          src="./landing_farmer_realistic.png"
+          alt="Indian farmer counting crop-insurance benefit money in a green paddy field"
+          width="1680"
+          height="945"
+          fetchpriority="high"
+          decoding="async"
+        />
+        <div class="field-overlay" aria-hidden="true"></div>
 
-      <!-- Role Selector -->
-      <div class="role-selector">
-        <button class="role-btn active" id="farmerRoleBtn" onclick="selectRole('farmer')">
-          <span class="role-icon">👨‍🌾</span>
-          <span class="role-name">Farmer</span>
-          <span class="role-desc">Submit & track claims</span>
-        </button>
-        <button class="role-btn" id="officerRoleBtn" onclick="selectRole('officer')">
-          <span class="role-icon">🏛️</span>
-          <span class="role-name">Officer</span>
-          <span class="role-desc">Review & approve claims</span>
-        </button>
-      </div>
+        <div class="field-topline">
+          <span class="field-status"><span class="live-dot" aria-hidden="true"></span> Field evidence connected</span>
+          <span class="season-label" id="seasonLabel">Kharif season</span>
+        </div>
 
-      <!-- Login Form -->
-      <form id="loginForm" onsubmit="handleLogin(event)">
-        <div style="display:flex;flex-direction:column;gap:16px;">
-          <div class="form-group">
-            <label>Email Address</label>
-            <input type="email" id="email" placeholder="Enter your email" required autocomplete="email"/>
+        <div class="evidence-float evidence-weather">
+          <span aria-hidden="true">☁</span>
+          <span><small>Weather cross-check</small><strong>Ready for review</strong></span>
+        </div>
+
+        <div class="story-content">
+          <p class="eyebrow">Your crop. Your evidence. Your trail.</p>
+          <h1 id="storyTitle">A fair claim starts with a clear field story.</h1>
+          <p>Access the portal to submit evidence, follow verification, understand decisions, and appeal when needed.</p>
+
+          <div class="crop-explorer" aria-label="Explore crop claim examples">
+            <div class="crop-tabs" role="group" aria-label="Crop example">
+              <button type="button" class="crop-tab is-active" data-crop="paddy" aria-pressed="true">Paddy</button>
+              <button type="button" class="crop-tab" data-crop="wheat" aria-pressed="false">Wheat</button>
+              <button type="button" class="crop-tab" data-crop="cotton" aria-pressed="false">Cotton</button>
+            </div>
+            <div class="crop-summary" id="cropSummary" aria-live="polite">
+              <span>
+                <small>Common evidence</small>
+                <strong id="cropEvidence">Flood marks + field photos</strong>
+              </span>
+              <span>
+                <small>Typical risk</small>
+                <strong id="cropRisk">Flood / drought</strong>
+              </span>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="password" placeholder="Enter your password" required autocomplete="current-password"/>
-          </div>
-          <div class="error-msg" id="errorMsg">
-            ❌ Invalid credentials. Please try again or use a demo account below.
-          </div>
-          <button type="submit" class="btn-login" id="loginBtn">
-            <span id="btnText">Sign In as Farmer</span>
-            <span class="spinner" id="spinner"></span>
+        </div>
+
+        <aside class="deadline-note">
+          <strong>72H</strong>
+          <span>Localized and post-harvest losses may need rapid intimation. Check your official policy guidance.</span>
+        </aside>
+      </section>
+
+      <section class="form-panel" aria-labelledby="formTitle">
+        <div class="form-heading">
+          <p class="eyebrow">Role-based portal access</p>
+          <h2 id="formTitle">Welcome back to the field ledger.</h2>
+          <p>Select your portal, then sign in with your registered or demo account.</p>
+        </div>
+
+        <div class="role-selector" role="group" aria-label="Choose portal role">
+          <button class="role-button is-active" id="farmerRoleButton" type="button" data-role-choice="farmer" aria-pressed="true">
+            <span class="role-icon" aria-hidden="true">👨🏽‍🌾</span>
+            <span><strong>Farmer</strong><small>File, track and appeal</small></span>
+            <span class="role-check" aria-hidden="true">✓</span>
+          </button>
+          <button class="role-button" id="officerRoleButton" type="button" data-role-choice="officer" aria-pressed="false">
+            <span class="role-icon" aria-hidden="true">🏛</span>
+            <span><strong>Officer</strong><small>Review and decide</small></span>
+            <span class="role-check" aria-hidden="true">✓</span>
           </button>
         </div>
-      </form>
 
-      <div class="divider">
-        <div class="divider-line"></div>
-        <span class="divider-text">or use demo account</span>
-        <div class="divider-line"></div>
-      </div>
+        <form id="loginForm" novalidate>
+          <div class="form-field">
+            <label for="email">Email address</label>
+            <div class="input-shell">
+              <span class="input-icon" aria-hidden="true">@</span>
+              <input id="email" name="email" type="email" placeholder="name@example.com" autocomplete="email" required />
+            </div>
+            <small class="field-error" id="emailError"></small>
+          </div>
 
-      <!-- Demo Credentials -->
-      <div class="demo-creds">
-        <span class="demo-title">Demo Accounts (Click to fill)</span>
-        <div class="demo-accounts">
-          <div class="demo-acc" onclick="fillDemo('rajesh.kumar@agrilink.in','farmer123','farmer')">
-            <div class="demo-acc-info">
-              <span class="demo-acc-email">rajesh.kumar@agrilink.in</span>
-              <span class="demo-acc-role">🌾 Farmer – Rajesh Kumar</span>
+          <div class="form-field">
+            <div class="label-row">
+              <label for="password">Password</label>
+              <button class="help-link" id="passwordHelp" type="button">Need help?</button>
             </div>
-            <span class="demo-use">Use →</span>
+            <div class="input-shell">
+              <span class="input-icon" aria-hidden="true">●</span>
+              <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+              <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" aria-pressed="false">
+                <span aria-hidden="true">Show</span>
+              </button>
+            </div>
+            <small class="field-error" id="passwordError"></small>
           </div>
-          <div class="demo-acc" onclick="fillDemo('priya.devi@agrilink.in','farmer123','farmer')">
-            <div class="demo-acc-info">
-              <span class="demo-acc-email">priya.devi@agrilink.in</span>
-              <span class="demo-acc-role">🌾 Farmer – Priya Devi</span>
-            </div>
-            <span class="demo-use">Use →</span>
-          </div>
-          <div class="demo-acc officer-acc" onclick="fillDemo('s.verma@agriculture.gov.in','officer123','officer')">
-            <div class="demo-acc-info">
-              <span class="demo-acc-email">s.verma@agriculture.gov.in</span>
-              <span class="demo-acc-role" style="color:rgba(147,197,253,0.7)">🏛️ Officer – Sandeep Verma</span>
-            </div>
-            <span class="demo-use" style="color:#60A5FA">Use →</span>
-          </div>
-          <div class="demo-acc officer-acc" onclick="fillDemo('a.sharma@agriculture.gov.in','officer123','officer')">
-            <div class="demo-acc-info">
-              <span class="demo-acc-email">a.sharma@agriculture.gov.in</span>
-              <span class="demo-acc-role" style="color:rgba(147,197,253,0.7)">🏛️ Officer – Anjali Sharma</span>
-            </div>
-            <span class="demo-use" style="color:#60A5FA">Use →</span>
+
+          <label class="remember-row">
+            <input id="rememberEmail" type="checkbox" />
+            <span class="custom-check" aria-hidden="true"></span>
+            <span>Remember email on this device</span>
+          </label>
+
+          <div class="form-alert" id="formAlert" role="alert" hidden></div>
+
+          <button class="login-button" id="loginButton" type="submit">
+            <span id="loginButtonText">Enter farmer portal</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+            <span class="spinner" id="spinner" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <div class="demo-section">
+          <div class="section-divider"><span>Demo access</span></div>
+          <p class="demo-intro">Choose an account to fill the credentials automatically.</p>
+
+          <div class="demo-list" id="demoList">
+            <button class="demo-account" type="button" data-demo-email="rajesh.kumar@agrilink.in" data-demo-password="farmer123" data-demo-role="farmer">
+              <span class="avatar avatar-farmer" aria-hidden="true">RK</span>
+              <span><strong>Rajesh Kumar</strong><small>Paddy farmer · Farmer portal</small></span>
+              <span class="use-account">Use →</span>
+            </button>
+            <button class="demo-account" type="button" data-demo-email="priya.devi@agrilink.in" data-demo-password="farmer123" data-demo-role="farmer">
+              <span class="avatar avatar-farmer" aria-hidden="true">PD</span>
+              <span><strong>Priya Devi</strong><small>Smallholder farmer · Farmer portal</small></span>
+              <span class="use-account">Use →</span>
+            </button>
+            <button class="demo-account" type="button" data-demo-email="s.verma@agriculture.gov.in" data-demo-password="officer123" data-demo-role="officer" hidden>
+              <span class="avatar avatar-officer" aria-hidden="true">SV</span>
+              <span><strong>Sandeep Verma</strong><small>Field inspection · Officer portal</small></span>
+              <span class="use-account">Use →</span>
+            </button>
+            <button class="demo-account" type="button" data-demo-email="a.sharma@agriculture.gov.in" data-demo-password="officer123" data-demo-role="officer" hidden>
+              <span class="avatar avatar-officer" aria-hidden="true">AS</span>
+              <span><strong>Anjali Sharma</strong><small>Crop loss assessment · Officer portal</small></span>
+              <span class="use-account">Use →</span>
+            </button>
           </div>
         </div>
-      </div>
 
-      <p class="landing-link">Not registered? <a href="landing.html#contact">Contact your state agriculture office</a></p>
+        <aside class="reference-box" aria-label="Helpful crop insurance references">
+          <div>
+            <span aria-hidden="true">↗</span>
+            <span><strong>Need crop-insurance guidance?</strong><small>Review eligibility, covered risks, and official claim channels.</small></span>
+          </div>
+          <div class="reference-links">
+            <a href="https://www.universalsompo.com/pradhanmantri-fasal-bima-yojna/" target="_blank" rel="noopener noreferrer">PMFBY guide</a>
+            <a href="https://pmfby.gov.in/" target="_blank" rel="noopener noreferrer">Official PMFBY portal</a>
+          </div>
+        </aside>
+      </section>
     </div>
+  </main>
+
+  <footer class="auth-footer">
+    <span>Nyay Setu AI · Crop claim decision-support prototype</span>
+    <span>AI assists evidence review. Authorized officers make decisions.</span>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+    <span class="toast-icon" id="toastIcon" aria-hidden="true">✓</span>
+    <span id="toastMessage"></span>
   </div>
-</main>
 
-<div class="toast" id="toast">
-  <span class="toast-icon" id="toastIcon">✅</span>
-  <span id="toastMsg">Login successful! Redirecting...</span>
-</div>
-
-<script>
-// ===== MOCK USER DATABASE =====
-const USERS = {
-  'rajesh.kumar@agrilink.in': { password:'farmer123', role:'farmer', name:'Rajesh Kumar', id:'farmer-1', position:'Lead Farmer & Agricultural Delegate' },
-  'priya.devi@agrilink.in': { password:'farmer123', role:'farmer', name:'Priya Devi', id:'farmer-2', position:'Smallholder Paddy Farmer' },
-  's.verma@agriculture.gov.in': { password:'officer123', role:'officer', name:'Sandeep Verma', id:'officer-1', position:'Senior Agricultural Field Inspection Officer' },
-  'a.sharma@agriculture.gov.in': { password:'officer123', role:'officer', name:'Anjali Sharma', id:'officer-2', position:'District Crop Loss Assessment Officer' },
-};
-
-let selectedRole = 'farmer';
-
-function selectRole(role) {
-  selectedRole = role;
-  const farmerBtn = document.getElementById('farmerRoleBtn');
-  const officerBtn = document.getElementById('officerRoleBtn');
-  const loginBtn = document.getElementById('loginBtn');
-  const btnText = document.getElementById('btnText');
-
-  if (role === 'farmer') {
-    farmerBtn.classList.add('active');
-    farmerBtn.classList.remove('active-officer');
-    officerBtn.classList.remove('active', 'active-officer');
-    loginBtn.classList.remove('officer-btn');
-    btnText.textContent = 'Sign In as Farmer';
-  } else {
-    officerBtn.classList.add('active-officer');
-    farmerBtn.classList.remove('active', 'active-officer');
-    loginBtn.classList.add('officer-btn');
-    btnText.textContent = 'Sign In as Officer';
-  }
-}
-
-function fillDemo(email, password, role) {
-  document.getElementById('email').value = email;
-  document.getElementById('password').value = password;
-  selectRole(role);
-  document.getElementById('errorMsg').classList.remove('show');
-}
-
-function showToast(msg, icon = '✅') {
-  const toast = document.getElementById('toast');
-  document.getElementById('toastMsg').textContent = msg;
-  document.getElementById('toastIcon').textContent = icon;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 4000);
-}
-
-async function handleLogin(e) {
-  e.preventDefault();
-  const email = document.getElementById('email').value.trim().toLowerCase();
-  const password = document.getElementById('password').value;
-  const errorMsg = document.getElementById('errorMsg');
-  const btnText = document.getElementById('btnText');
-  const spinner = document.getElementById('spinner');
-  const loginBtn = document.getElementById('loginBtn');
-
-  // Hide error
-  errorMsg.classList.remove('show');
-
-  // Show loading
-  btnText.style.display = 'none';
-  spinner.style.display = 'block';
-  loginBtn.disabled = true;
-
-  // Simulate network delay
-  await new Promise(r => setTimeout(r, 1200));
-
-  const user = USERS[email];
-
-  if (!user || user.password !== password) {
-    // Wrong credentials
-    btnText.style.display = 'block';
-    spinner.style.display = 'none';
-    loginBtn.disabled = false;
-    errorMsg.classList.add('show');
-    return;
-  }
-
-  if (user.role !== selectedRole) {
-    btnText.style.display = 'block';
-    spinner.style.display = 'none';
-    loginBtn.disabled = false;
-    errorMsg.textContent = `❌ This account is a ${user.role.toUpperCase()} account. Please select the correct role.`;
-    errorMsg.classList.add('show');
-    return;
-  }
-
-  // Success — store session
-  sessionStorage.setItem('nyay_user', JSON.stringify({
-    id: user.id,
-    name: user.name,
-    email: email,
-    role: user.role,
-    position: user.position || 'Agricultural Field Officer'
-  }));
-
-  showToast(`Welcome, ${user.name}! Redirecting to ${user.role} portal...`);
-
-  setTimeout(() => {
-    if (user.role === 'farmer') {
-      window.location.href = '/?portal=farmer';
-    } else {
-      window.location.href = '/?portal=officer';
-    }
-  }, 1500);
-}
-
-// Auto-fill from URL params if present
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('role') === 'officer') {
-  selectRole('officer');
-}
-</script>
+  <script type="module" src="./login.js"></script>
 </body>
 </html>

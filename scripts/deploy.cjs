@@ -1,19 +1,17 @@
 const hre = require("hardhat");
 
 async function main() {
-  console.log("Deploying KisanNyayLedger...");
+  const [deployer] = await hre.ethers.getSigners();
+  console.log("Deploying KisanNyayLedger from:", deployer.address);
 
-  const KisanNyayLedger = await hre.ethers.getContractFactory("KisanNyayLedger");
-  const ledger = await KisanNyayLedger.deploy();
-
+  const Ledger = await hre.ethers.getContractFactory("KisanNyayLedger");
+  const ledger = await Ledger.deploy();
   await ledger.waitForDeployment();
 
   console.log("KisanNyayLedger deployed to:", await ledger.getAddress());
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
