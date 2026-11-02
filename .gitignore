@@ -9,3 +9,5 @@ coverage/
 artifacts/
 cache/
 typechain-types/
+*.docx
+*.pptx
