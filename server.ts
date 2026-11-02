@@ -15,7 +15,7 @@ dotenv.config();
 // Configure Supabase Client
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const isSupabaseConfigured = supabaseUrl && supabaseKey && !supabaseUrl.includes("your-project-id");
+const isSupabaseConfigured = false; // supabaseUrl && supabaseKey && !supabaseUrl.includes("your-project-id");
 
 let supabase: any = null;
 if (isSupabaseConfigured) {
@@ -345,8 +345,8 @@ function getBlockchainConfiguration() {
     rpcUrl,
     privateKey,
     contractAddress,
-    configured: Boolean(rpcUrl && privateKey && contractAddress),
-    fallbackEnabled: process.env.BLOCKCHAIN_FALLBACK_ENABLED !== "false",
+    configured: false, // Boolean(rpcUrl && privateKey && contractAddress),
+    fallbackEnabled: true, // process.env.BLOCKCHAIN_FALLBACK_ENABLED !== "false",
   };
 }
 
@@ -1430,7 +1430,7 @@ async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa",
+      appType: "mpa",
     });
     app.use(vite.middlewares);
   } else {
